@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from copy import deepcopy
 from typing import Any
@@ -13,6 +14,8 @@ from vision import analyze_scene
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5vl:3b"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 HISTORY_WINDOW = 6
 
 STARTING_INVENTORY: dict[str, list[str]] = {
@@ -91,7 +94,7 @@ def start_photo_game(image_path: str, character_class: str) -> dict[str, Any]:
 def take_photo_action(state: dict[str, Any], player_action: str) -> tuple[dict[str, Any], dict[str, Any]]:
     updated_state = deepcopy(state)
     prompt = _build_dm_prompt(updated_state, player_action.strip())
-    raw_text = _call_ollama(prompt)
+    raw_text = _call_dm(prompt)
     parsed = parse_dm_response(raw_text)
 
     updated_state["turn"] = int(updated_state.get("turn", 0)) + 1
@@ -138,6 +141,39 @@ def _build_dm_prompt(state: dict[str, Any], player_action: str) -> str:
     return "\n".join(lines)
 
 
+def _call_dm(prompt: str) -> str:
+    """Call Groq if GROQ_API_KEY is set, otherwise fall back to local Ollama."""
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        return _call_groq(prompt, groq_key)
+    return _call_ollama(prompt)
+
+
+def _call_groq(prompt: str, api_key: str) -> str:
+    payload = json.dumps({
+        "model": GROQ_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7,
+        "max_tokens": 300,
+    }).encode("utf-8")
+
+    request = Request(
+        GROQ_URL,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=60) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data["choices"][0]["message"]["content"]
+    except (HTTPError, URLError) as exc:
+        raise RuntimeError(f"Groq request failed: {exc}") from exc
+
+
 def _call_ollama(prompt: str) -> str:
     payload = json.dumps({
         "model": OLLAMA_MODEL,
@@ -169,7 +205,6 @@ def parse_dm_response(raw: str) -> dict[str, Any]:
     choice_block = re.search(r"CHOICE\s*:\s*(.+?)$", raw, re.IGNORECASE | re.DOTALL)
     if choice_block:
         numbered = re.findall(r"^\s*[1-3][\.\)]\s*(.+)", choice_block.group(1), re.MULTILINE)
-        # Filter out any placeholder text the model might still generate
         real = [c.strip() for c in numbered
                 if "[" not in c and len(c.strip()) > 8]
         if real:
