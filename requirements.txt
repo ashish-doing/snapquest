@@ -1,0 +1,9 @@
+gradio>=5.9.1
+requests
+edge-tts
+openai-whisper
+Pillow
+modal
+transformers
+torch
+accelerate
