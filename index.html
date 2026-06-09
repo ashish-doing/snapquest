@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnapQuest — Your World. Your Dungeon.</title>
+<meta name="description" content="Upload any photo. A 1.3B vision model reads it and builds your RPG adventure. Built for the Build Small Hackathon 2026.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #c8a96e;
+    --gold-dim: #8a6e3e;
+    --gold-bright: #e8c98e;
+    --crimson: #8b0000;
+    --crimson-bright: #cc1111;
+    --crimson-glow: #ff2222;
+    --bg: #000000;
+    --bg-surface: #0a0a0a;
+    --bg-card: #0d0d0d;
+    --text: #d4c4a0;
+    --text-dim: #7a6a50;
+    --border: rgba(200, 169, 110, 0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* CRT SCANLINES */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.18) 2px,
+      rgba(0,0,0,0.18) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* CRT VIGNETTE */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.75) 100%);
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #050505; }
+  ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 0; }
+
+  .noise { position: relative; }
+  .noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.06;
+    pointer-events: none;
+  }
+
+  h1, h2, h3, h4 { font-family: 'VT323', monospace; letter-spacing: 0.05em; }
+  .serif { font-family: 'Crimson Text', serif; }
+
+  .glow-gold { text-shadow: 0 0 20px rgba(200,169,110,0.6), 0 0 40px rgba(200,169,110,0.3); }
+  .glow-crimson { text-shadow: 0 0 20px rgba(139,0,0,0.8), 0 0 40px rgba(139,0,0,0.5); }
+  .border-glow { border: 1px solid var(--gold); box-shadow: 0 0 12px rgba(200,169,110,0.2), inset 0 0 12px rgba(200,169,110,0.05); }
+  .border-glow-crimson { border: 1px solid var(--crimson-bright); box-shadow: 0 0 12px rgba(139,0,0,0.4), inset 0 0 12px rgba(139,0,0,0.08); }
+
+  section {
+    position: relative;
+    padding: 80px 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-divider {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+    opacity: 0.5;
+  }
+
+  .section-tag {
+    font-size: 14px;
+    letter-spacing: 0.25em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    background: rgba(0,0,0,0.85);
+    border-bottom: 1px solid rgba(200,169,110,0.15);
+    backdrop-filter: blur(4px);
+  }
+
+  .nav-logo { font-size: 26px; color: var(--gold); text-shadow: 0 0 12px rgba(200,169,110,0.4); letter-spacing: 0.1em; }
+  .nav-logo span { color: var(--crimson-bright); }
+
+  .nav-links { display: flex; gap: 32px; list-style: none; }
+  .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 16px; letter-spacing: 0.1em; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--gold); }
+
+  .nav-cta {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    padding: 8px 20px;
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    cursor: pointer;
+    text-decoration: none;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+    box-shadow: 0 0 8px rgba(200,169,110,0.15);
+  }
+  .nav-cta:hover { background: rgba(200,169,110,0.1); box-shadow: 0 0 16px rgba(200,169,110,0.35); }
+
+  /* HERO */
+  #hero {
+    min-height: 100vh;
+    max-width: 100%;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-bg-runes {
+    position: absolute;
+    inset: 0;
+    opacity: 0.04;
+    font-size: 200px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    pointer-events: none;
+    color: var(--gold);
+    overflow: hidden;
+    user-select: none;
+    will-change: transform;
+  }
+
+  .hero-bg-runes span { display: flex; align-items: center; justify-content: center; animation: rune-pulse 4s ease-in-out infinite; }
+  .hero-bg-runes span:nth-child(2n) { animation-delay: 1.3s; }
+  .hero-bg-runes span:nth-child(3n) { animation-delay: 2.6s; }
+
+  @keyframes rune-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+  }
+
+  .hero-inner {
+    position: relative;
+    z-index: 2;
+    padding: 120px 24px 80px;
+    max-width: 900px;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    letter-spacing: 0.3em;
+    color: var(--crimson-bright);
+    margin-bottom: 32px;
+    text-transform: uppercase;
+  }
+  .hero-eyebrow::before, .hero-eyebrow::after { content: '—'; color: var(--gold-dim); }
+
+  .hero-headline {
+    font-size: clamp(64px, 12vw, 120px);
+    line-height: 1;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(200,169,110,0.5), 0 0 80px rgba(200,169,110,0.2);
+    margin-bottom: 8px;
+    letter-spacing: 0.04em;
+    animation: flicker 8s infinite;
+  }
+
+  .hero-headline .crimson-word {
+    color: var(--crimson-bright);
+    text-shadow: 0 0 30px rgba(204,17,17,0.7), 0 0 80px rgba(139,0,0,0.4);
+  }
+
+  .hero-sub {
+    font-family: 'Crimson Text', serif;
+    font-size: clamp(18px, 3vw, 24px);
+    color: var(--text);
+    opacity: 0.8;
+    max-width: 560px;
+    margin: 24px auto 48px;
+    line-height: 1.7;
+    font-style: italic;
+  }
+  .hero-sub strong { color: var(--gold); font-style: normal; font-weight: 600; }
+
+  .cta-group { display: flex; gap: 16px; justify-content: center; align-items: center; flex-wrap: wrap; }
+
+  .btn-primary {
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    letter-spacing: 0.1em;
+    padding: 14px 40px;
+    background: var(--crimson);
+    color: var(--gold-bright);
+    border: 1px solid var(--crimson-bright);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 24px rgba(139,0,0,0.5), inset 0 0 24px rgba(139,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -60%;
+    width: 40%; height: 200%;
+    background: rgba(255,255,255,0.08);
+    transform: skewX(-20deg);
+    transition: left 0.4s;
+  }
+  .btn-primary:hover::before { left: 120%; }
+  .btn-primary:hover { background: var(--crimson-bright); box-shadow: 0 0 40px rgba(204,17,17,0.7), inset 0 0 20px rgba(255,0,0,0.2); color: #fff; }
+
+  .btn-secondary {
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    letter-spacing: 0.1em;
+    padding: 14px 32px;
+    background: transparent;
+    color: var(--gold-dim);
+    border: 1px solid var(--gold-dim);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { color: var(--gold); border-color: var(--gold); box-shadow: 0 0 16px rgba(200,169,110,0.2); }
+
+  .hero-scroll-hint {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    animation: scroll-hint 2s ease-in-out infinite;
+  }
+
+  @keyframes scroll-hint {
+    0%, 100% { opacity: 0.4; transform: translateX(-50%) translateY(0); }
+    50% { opacity: 0.8; transform: translateX(-50%) translateY(6px); }
+  }
+
+  /* HOW IT WORKS */
+  #how-it-works .section-headline { font-size: clamp(36px, 6vw, 56px); color: var(--gold); margin-bottom: 8px; }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr 40px 1fr;
+    align-items: start;
+    gap: 0;
+    margin-top: 60px;
+  }
+
+  .step-connector { display: flex; align-items: flex-start; justify-content: center; padding-top: 40px; color: var(--gold-dim); font-size: 28px; }
+
+  .step-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 36px 28px;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s;
+  }
+  .step-card:hover { border-color: var(--gold); box-shadow: 0 0 30px rgba(200,169,110,0.15); }
+
+  .step-number {
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--crimson);
+    border: 1px solid var(--crimson-bright);
+    color: var(--gold-bright);
+    font-size: 22px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 12px rgba(139,0,0,0.5);
+  }
+
+  .step-icon { font-size: 52px; margin: 16px 0 12px; filter: drop-shadow(0 0 8px rgba(200,169,110,0.3)); }
+  .step-title { font-size: 28px; color: var(--gold); margin-bottom: 10px; letter-spacing: 0.05em; }
+  .step-desc { font-family: 'Crimson Text', serif; font-size: 17px; color: var(--text-dim); line-height: 1.6; }
+
+  /* CLASSES */
+  #classes .section-headline { font-size: clamp(36px, 6vw, 56px); color: var(--gold); margin-bottom: 8px; }
+
+  .classes-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 60px; }
+
+  .class-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 28px 16px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .class-card::before { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--crimson); transform: scaleX(0); transition: transform 0.3s; }
+  .class-card:hover::before { transform: scaleX(1); }
+  .class-card:hover { border-color: var(--gold); box-shadow: 0 0 30px rgba(200,169,110,0.12); transform: translateY(-4px); }
+  .class-card.active { border-color: var(--gold); box-shadow: 0 0 30px rgba(200,169,110,0.2); background: #110e08; }
+  .class-card.active::before { transform: scaleX(1); }
+
+  .class-glyph { font-size: 48px; margin-bottom: 10px; display: block; filter: drop-shadow(0 0 8px rgba(200,169,110,0.4)); }
+  .class-name { font-size: 26px; color: var(--gold); letter-spacing: 0.08em; margin-bottom: 8px; }
+  .class-desc { font-family: 'Crimson Text', serif; font-size: 14px; color: var(--text-dim); line-height: 1.5; margin-bottom: 16px; min-height: 52px; }
+
+  .class-stats { display: flex; flex-direction: column; gap: 6px; }
+  .stat-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .stat-label { color: var(--text-dim); width: 40px; text-align: left; font-size: 13px; letter-spacing: 0.05em; }
+  .stat-bar-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.05); position: relative; overflow: hidden; }
+  .stat-bar-fill { height: 100%; background: var(--gold-dim); transition: width 0.6s ease; position: relative; }
+  .stat-bar-fill::after { content: ''; position: absolute; right: 0; top: -1px; width: 3px; height: 6px; background: var(--gold-bright); }
+  .class-card.active .stat-bar-fill { background: var(--gold); }
+
+  /* EXAMPLE SCENE */
+  #example .section-headline { font-size: clamp(36px, 6vw, 56px); color: var(--gold); margin-bottom: 8px; }
+
+  /* FIX: stretch both panels to same height */
+  .scene-container {
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin-top: 60px;
+  }
+
+  .scene-before { background: var(--bg-card); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
+
+  .photo-mock {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #0c0c0c;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .photo-mock .desk-surface { position: absolute; bottom: 0; left: 0; right: 0; height: 40%; background: #1a1208; }
+  .photo-mock .desk-lamp { position: absolute; bottom: 38%; right: 28%; width: 6px; height: 60px; background: #3a3020; }
+  .photo-mock .desk-lamp::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%) rotate(-30deg); transform-origin: bottom center; width: 40px; height: 6px; background: #3a3020; }
+  .photo-mock .desk-lamp::after { content: ''; position: absolute; top: -10px; left: -12px; width: 30px; height: 16px; background: #5a4820; border-radius: 0 0 50% 50%; box-shadow: 0 4px 30px rgba(255,200,50,0.25); }
+  .photo-mock .desk-monitor { position: absolute; bottom: 40%; left: 20%; width: 80px; height: 55px; background: #0e0e0e; border: 2px solid #2a2a2a; }
+  .photo-mock .desk-monitor::after { content: ''; position: absolute; inset: 4px; background: linear-gradient(135deg, #0a1520 0%, #051025 100%); display: flex; }
+  .photo-mock .desk-books { position: absolute; bottom: 40%; right: 12%; display: flex; gap: 2px; align-items: flex-end; }
+  .book { width: 10px; border-radius: 0; }
+  .photo-mock .photo-label { position: absolute; bottom: 12px; left: 12px; font-size: 13px; color: rgba(255,255,255,0.35); letter-spacing: 0.1em; }
+
+  .photo-caption { padding: 14px 18px; font-size: 15px; color: var(--text-dim); border-top: 1px solid var(--border); letter-spacing: 0.05em; }
+
+  .scene-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--crimson-bright); }
+  .arrow-glyph { font-size: 32px; animation: arrow-pulse 1.5s ease-in-out infinite; }
+
+  @keyframes arrow-pulse {
+    0%, 100% { opacity: 0.5; transform: translateX(0); }
+    50% { opacity: 1; transform: translateX(4px); }
+  }
+
+  .arrow-label { font-size: 11px; letter-spacing: 0.2em; color: var(--text-dim); text-align: center; }
+
+  .scene-after { background: var(--bg-card); border: 1px solid rgba(200,169,110,0.4); box-shadow: 0 0 30px rgba(200,169,110,0.08); display: flex; flex-direction: column; }
+
+  .scene-terminal { padding: 0; flex: 1; display: flex; flex-direction: column; }
+
+  .terminal-bar { background: #0f0d09; border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #8b0000; box-shadow: 0 0 4px #8b0000; }
+  .terminal-dot.amber { background: #8a6000; box-shadow: 0 0 4px #8a6000; }
+  .terminal-dot.green { background: #0a5000; box-shadow: 0 0 4px #0a5000; }
+  .terminal-title { font-size: 14px; color: var(--text-dim); letter-spacing: 0.15em; margin-left: 8px; }
+
+  .terminal-body { padding: 24px; flex: 1; font-family: 'VT323', monospace; }
+
+  .terminal-location { font-size: 30px; color: var(--gold); text-shadow: 0 0 16px rgba(200,169,110,0.5); margin-bottom: 6px; letter-spacing: 0.08em; }
+  .terminal-subtitle { font-size: 16px; color: var(--crimson-bright); letter-spacing: 0.15em; margin-bottom: 20px; }
+
+  .terminal-flavor { font-family: 'Crimson Text', serif; font-size: 17px; color: var(--text); line-height: 1.75; margin-bottom: 20px; font-style: italic; min-height: 120px; }
+
+  .terminal-objects { margin-bottom: 20px; }
+  .terminal-objects-title { font-size: 14px; color: var(--gold-dim); letter-spacing: 0.2em; margin-bottom: 10px; }
+
+  .object-tag { display: inline-block; border: 1px solid var(--border); padding: 3px 10px; font-size: 15px; color: var(--text-dim); margin: 3px 4px 3px 0; letter-spacing: 0.05em; transition: all 0.2s; }
+  .object-tag:hover { border-color: var(--gold); color: var(--gold); }
+
+  .terminal-actions { display: flex; flex-direction: column; gap: 6px; }
+  .action-item { font-size: 17px; color: var(--text-dim); letter-spacing: 0.03em; cursor: pointer; transition: color 0.15s; display: flex; align-items: center; gap: 8px; }
+  .action-item:hover { color: var(--gold); }
+  .action-arrow { color: var(--crimson-bright); }
+
+  .cursor-blink { display: inline-block; width: 10px; height: 18px; background: var(--gold); animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 2px; }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* POWERED BY */
+  #powered { text-align: center; max-width: 1100px; }
+  #powered .section-headline { font-size: clamp(32px, 5vw, 48px); color: var(--gold); margin-bottom: 8px; }
+
+  .powered-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 56px; }
+
+  .powered-card { background: var(--bg-card); border: 1px solid var(--border); padding: 28px 20px; text-align: center; transition: all 0.3s; position: relative; }
+  .powered-card:hover { border-color: var(--gold); box-shadow: 0 0 20px rgba(200,169,110,0.1); }
+
+  .powered-badge { font-size: 13px; letter-spacing: 0.2em; color: var(--crimson-bright); margin-bottom: 12px; text-transform: uppercase; display: block; }
+  .powered-name { font-size: 26px; color: var(--gold); letter-spacing: 0.05em; margin-bottom: 8px; }
+  .powered-desc { font-family: 'Crimson Text', serif; font-size: 15px; color: var(--text-dim); line-height: 1.5; }
+  .powered-icon { font-size: 36px; margin-bottom: 12px; display: block; filter: drop-shadow(0 0 6px rgba(200,169,110,0.2)); }
+
+  /* HACKATHON BADGE */
+  .hackathon-banner { max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; display: flex; justify-content: center; }
+
+  .hf-badge { border: 1px solid rgba(255,173,0,0.4); background: rgba(255,173,0,0.04); box-shadow: 0 0 20px rgba(255,173,0,0.08); padding: 20px 40px; display: flex; align-items: center; gap: 20px; font-size: 20px; color: #ffad00; letter-spacing: 0.08em; text-decoration: none; transition: all 0.2s; }
+  .hf-badge:hover { background: rgba(255,173,0,0.08); box-shadow: 0 0 30px rgba(255,173,0,0.15); }
+  .hf-badge .hf-emoji { font-size: 30px; }
+  .hf-badge .hf-sub { font-size: 14px; color: rgba(255,173,0,0.5); letter-spacing: 0.15em; }
+
+  /* FOOTER */
+  footer { border-top: 1px solid rgba(200,169,110,0.15); padding: 40px 24px; max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .footer-logo { font-size: 28px; color: var(--gold); letter-spacing: 0.1em; opacity: 0.6; }
+  .footer-logo span { color: var(--crimson-bright); }
+  .footer-links { display: flex; gap: 24px; list-style: none; }
+  .footer-links a { color: var(--text-dim); text-decoration: none; font-size: 16px; letter-spacing: 0.08em; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--gold); }
+  .footer-copy { font-family: 'Crimson Text', serif; font-size: 14px; color: var(--text-dim); opacity: 0.5; }
+
+  /* ORNAMENTS */
+  .ornament { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .ornament-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-dim)); opacity: 0.4; }
+  .ornament-line.right { background: linear-gradient(90deg, var(--gold-dim), transparent); }
+  .ornament-symbol { color: var(--gold-dim); font-size: 22px; opacity: 0.6; }
+
+  @keyframes flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.85; }
+    97% { opacity: 1; }
+    98% { opacity: 0.9; }
+  }
+
+  /* SCROLL REVEAL */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+  .reveal-delay-5 { transition-delay: 0.5s; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .steps-grid { grid-template-columns: 1fr; gap: 40px; }
+    .step-connector { display: none; }
+    .classes-grid { grid-template-columns: repeat(3, 1fr); }
+    .scene-container { grid-template-columns: 1fr; align-items: stretch; }
+    .scene-arrow { flex-direction: row; padding: 12px 0; }
+    .powered-grid { grid-template-columns: repeat(2, 1fr); }
+    nav { padding: 12px 20px; }
+    .nav-links { display: none; }
+  }
+
+  @media (max-width: 600px) {
+    .classes-grid { grid-template-columns: repeat(2, 1fr); }
+    .powered-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Snap<span>Quest</span></div>
+  <ul class="nav-links">
+    <li><a href="#how-it-works">How it Works</a></li>
+    <li><a href="#classes">Classes</a></li>
+    <li><a href="#example">Demo</a></li>
+    <li><a href="#powered">Tech</a></li>
+  </ul>
+  <a href="#" class="nav-cta">▶ Play Now</a>
+</nav>
+
+<!-- HERO -->
+<div id="hero" class="noise">
+  <div class="hero-bg-runes" aria-hidden="true" id="runesBg">
+    <span>᚛</span><span>ᚔ</span><span>ᚕ</span><span>ᚗ</span><span>ᚘ</span><span>ᚙ</span>
+    <span>ᚐ</span><span>ᚑ</span><span>ᚒ</span><span>ᚓ</span><span>ᚔ</span><span>ᚕ</span>
+    <span>ᚃ</span><span>ᚄ</span><span>ᚅ</span><span>ᚆ</span><span>ᚇ</span><span>᚜</span>
+    <span>ᚏ</span><span>ᚐ</span><span>ᚑ</span><span>ᚒ</span><span>ᚓ</span><span>ᚔ</span>
+  </div>
+
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Build Small Hackathon 2026</div>
+    <h1 class="hero-headline">
+      Your world.<br>
+      <span class="crimson-word">Your dungeon.</span>
+    </h1>
+    <p class="hero-sub">
+      Upload any photo. A <strong>1.3B vision model</strong> reads it and builds your adventure.
+      Your bookshelf becomes the Archive of Ancient Tomes.
+      Your lamp becomes the Flickering Oracle.
+    </p>
+    <div class="cta-group">
+      <a href="#" class="btn-primary">▶ Play on Hugging Face →</a>
+      <a href="#how-it-works" class="btn-secondary">How it works</a>
+    </div>
+  </div>
+
+  <div class="hero-scroll-hint" aria-hidden="true">
+    <span style="font-size:13px; letter-spacing:0.2em;">SCROLL</span>
+    <span>▼</span>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="section-divider"></div>
+<section id="how-it-works">
+  <div class="ornament">
+    <div class="ornament-line"></div>
+    <span class="ornament-symbol">⚔</span>
+    <div class="ornament-line right"></div>
+  </div>
+  <span class="section-tag">The Ritual</span>
+  <h2 class="section-headline reveal">How It Works</h2>
+  <p class="serif reveal" style="font-size:18px; color:var(--text-dim); max-width:500px; margin-top:8px; font-style:italic;">
+    Three steps stand between you and your adventure.
+  </p>
+
+  <div class="steps-grid">
+    <div class="step-card reveal reveal-delay-1">
+      <div class="step-number">I</div>
+      <div class="step-icon">📷</div>
+      <div class="step-title">Upload Photo</div>
+      <p class="step-desc">Any real place. Your bedroom, your office, a forest clearing. The model sees what you see.</p>
+    </div>
+    <div class="step-connector reveal reveal-delay-2">▶</div>
+    <div class="step-card reveal reveal-delay-2">
+      <div class="step-number">II</div>
+      <div class="step-icon">🎭</div>
+      <div class="step-title">Pick Your Class</div>
+      <p class="step-desc">Swordsman, Archer, Healer, Rogue, or Mage. Your class shapes how the dungeon reads you.</p>
+    </div>
+    <div class="step-connector reveal reveal-delay-3">▶</div>
+    <div class="step-card reveal reveal-delay-3">
+      <div class="step-number">III</div>
+      <div class="step-icon">⚡</div>
+      <div class="step-title">Adventure Begins</div>
+      <p class="step-desc">MiniCPM-V 4.6 transforms every object into lore. Navigate, fight, survive.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CLASSES -->
+<div class="section-divider"></div>
+<section id="classes">
+  <div class="ornament">
+    <div class="ornament-line"></div>
+    <span class="ornament-symbol">✦</span>
+    <div class="ornament-line right"></div>
+  </div>
+  <span class="section-tag">Choose Your Fate</span>
+  <h2 class="section-headline reveal">Character Classes</h2>
+  <p class="serif reveal" style="font-size:18px; color:var(--text-dim); max-width:500px; margin-top:8px; font-style:italic;">
+    Each class perceives the dungeon differently. Choose wisely.
+  </p>
+
+  <div class="classes-grid" id="classGrid">
+    <div class="class-card active reveal reveal-delay-1" data-class="swordsman">
+      <span class="class-glyph">⚔</span>
+      <div class="class-name">Swordsman</div>
+      <p class="class-desc">A warrior of iron will. Every shadow is an enemy. Every doorway a battlefield.</p>
+      <div class="class-stats">
+        <div class="stat-row"><span class="stat-label">STR</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:90%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">DEF</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:75%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">MAG</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:20%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">SPD</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:55%"></div></div></div>
+      </div>
+    </div>
+
+    <div class="class-card reveal reveal-delay-2" data-class="archer">
+      <span class="class-glyph">🏹</span>
+      <div class="class-name">Archer</div>
+      <p class="class-desc">Keen eyes that pierce illusions. Distances collapse before your sight.</p>
+      <div class="class-stats">
+        <div class="stat-row"><span class="stat-label">STR</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:55%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">DEF</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:40%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">MAG</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:35%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">SPD</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:88%"></div></div></div>
+      </div>
+    </div>
+
+    <div class="class-card reveal reveal-delay-2" data-class="healer">
+      <span class="class-glyph">✚</span>
+      <div class="class-name">Healer</div>
+      <p class="class-desc">Light made flesh. You see salvation where others see ruin.</p>
+      <div class="class-stats">
+        <div class="stat-row"><span class="stat-label">STR</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:30%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">DEF</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:60%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">MAG</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:95%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">SPD</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:45%"></div></div></div>
+      </div>
+    </div>
+
+    <div class="class-card reveal reveal-delay-3" data-class="rogue">
+      <span class="class-glyph">🗡</span>
+      <div class="class-name">Rogue</div>
+      <p class="class-desc">Darkness is your armour. Silence is your blade. Secrets await your finding.</p>
+      <div class="class-stats">
+        <div class="stat-row"><span class="stat-label">STR</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:65%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">DEF</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:35%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">MAG</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:50%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">SPD</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:92%"></div></div></div>
+      </div>
+    </div>
+
+    <div class="class-card reveal reveal-delay-4" data-class="mage">
+      <span class="class-glyph">✦</span>
+      <div class="class-name">Mage</div>
+      <p class="class-desc">Reality bends beneath your gaze. Objects whisper their true names to you.</p>
+      <div class="class-stats">
+        <div class="stat-row"><span class="stat-label">STR</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:20%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">DEF</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:30%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">MAG</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:98%"></div></div></div>
+        <div class="stat-row"><span class="stat-label">SPD</span><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:60%"></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EXAMPLE SCENE -->
+<div class="section-divider"></div>
+<section id="example">
+  <div class="ornament">
+    <div class="ornament-line"></div>
+    <span class="ornament-symbol">◈</span>
+    <div class="ornament-line right"></div>
+  </div>
+  <span class="section-tag">The Transformation</span>
+  <h2 class="section-headline reveal">From Room to Realm</h2>
+  <p class="serif reveal" style="font-size:18px; color:var(--text-dim); max-width:600px; margin-top:8px; font-style:italic;">
+    A study desk, seen through the eyes of MiniCPM-V 4.6, becomes something altogether else.
+  </p>
+
+  <div class="scene-container reveal" style="margin-top:56px;">
+    <!-- BEFORE -->
+    <div class="scene-before">
+      <div class="photo-mock">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#1a1610 0%,#0e0c08 100%);"></div>
+        <div class="desk-surface"></div>
+        <div class="desk-monitor"></div>
+        <div class="desk-lamp"></div>
+        <div class="desk-books">
+          <div class="book" style="height:52px;background:#3a1a0a;"></div>
+          <div class="book" style="height:44px;background:#1a2a3a;"></div>
+          <div class="book" style="height:58px;background:#2a1a08;"></div>
+          <div class="book" style="height:40px;background:#0a2a1a;"></div>
+          <div class="book" style="height:50px;background:#2a2a1a;"></div>
+        </div>
+        <div style="position:absolute;bottom:42%;left:22%;width:70px;height:14px;background:#111;border:1px solid #222;"></div>
+        <div class="photo-label">📷 your-desk.jpg</div>
+      </div>
+      <div class="photo-caption">INPUT → A cluttered home desk</div>
+    </div>
+
+    <!-- ARROW -->
+    <div class="scene-arrow">
+      <div class="arrow-glyph">▶▶</div>
+      <div class="arrow-label">1.3B<br>MODEL</div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="scene-after">
+      <div class="scene-terminal">
+        <div class="terminal-bar">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot amber"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">SNAPQUEST — SCENE GENERATED</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-location">Scholar's Sanctum</div>
+          <div class="terminal-subtitle">▸ AREA: FORBIDDEN WING · LEVEL 3</div>
+          <p class="terminal-flavor" id="typewriterTarget">
+            Ancient manuscripts cover every surface. The brass lamp casts long shadows across forbidden knowledge. Dust motes drift like the souls of forgotten scribes. Something watches from between the shelves.
+          </p>
+          <div class="terminal-objects">
+            <div class="terminal-objects-title">▸ OBJECTS IDENTIFIED:</div>
+            <span class="object-tag">Archive of Ancient Tomes</span>
+            <span class="object-tag">Flickering Oracle</span>
+            <span class="object-tag">Obsidian Scrying Glass</span>
+            <span class="object-tag">Tome of Forbidden Rites</span>
+          </div>
+          <div class="terminal-actions">
+            <div class="terminal-objects-title">▸ WHAT DO YOU DO?</div>
+            <div class="action-item"><span class="action-arrow">›</span> Examine the glowing manuscript</div>
+            <div class="action-item"><span class="action-arrow">›</span> Approach the Flickering Oracle</div>
+            <div class="action-item"><span class="action-arrow">›</span> Search for hidden passages</div>
+            <div class="action-item"><span class="action-arrow">›</span> Flee<span class="cursor-blink"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- POWERED BY -->
+<div class="section-divider"></div>
+<section id="powered">
+  <div class="ornament">
+    <div class="ornament-line"></div>
+    <span class="ornament-symbol">⬡</span>
+    <div class="ornament-line right"></div>
+  </div>
+  <span class="section-tag">The Forge</span>
+  <h2 class="section-headline reveal">Powered By</h2>
+  <p class="serif reveal" style="font-size:18px; color:var(--text-dim); max-width:500px; margin:8px auto 0; font-style:italic;">
+    Small model. Big magic. Built on open infrastructure.
+  </p>
+
+  <div class="powered-grid">
+    <div class="powered-card reveal reveal-delay-1">
+      <span class="powered-icon">🔮</span>
+      <span class="powered-badge">Vision Model</span>
+      <div class="powered-name">MiniCPM-V 4.6</div>
+      <p class="powered-desc">1.3B parameter model by OpenBMB. Sees your world, names its shadows.</p>
+    </div>
+    <div class="powered-card reveal reveal-delay-2">
+      <span class="powered-icon">☁</span>
+      <span class="powered-badge">Serverless Compute</span>
+      <div class="powered-name">Modal Labs</div>
+      <p class="powered-desc">Cold-start inference at the edge. The dungeon spawns in seconds.</p>
+    </div>
+    <div class="powered-card reveal reveal-delay-3">
+      <span class="powered-icon">🤗</span>
+      <span class="powered-badge">Demo Platform</span>
+      <div class="powered-name">Hugging Face</div>
+      <p class="powered-desc">Spaces hosts the portal. Enter the dungeon from any browser.</p>
+    </div>
+    <div class="powered-card reveal reveal-delay-4">
+      <span class="powered-icon">⚗</span>
+      <span class="powered-badge">Model Origin</span>
+      <div class="powered-name">OpenBMB</div>
+      <p class="powered-desc">The research lab that forged MiniCPM. Small models, vast ambitions.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HACKATHON BADGE -->
+<div class="hackathon-banner">
+  <a href="https://huggingface.co/build-small-hackathon" class="hf-badge" target="_blank" rel="noopener">
+    <span class="hf-emoji">🤗</span>
+    <div>
+      <div>Build Small Hackathon</div>
+      <div class="hf-sub">huggingface.co/build-small-hackathon</div>
+    </div>
+  </a>
+</div>
+
+<!-- FOOTER -->
+<div class="section-divider"></div>
+<footer>
+  <div class="footer-logo">Snap<span>Quest</span></div>
+  <ul class="footer-links">
+    <li><a href="#">GitHub →</a></li>
+    <li><a href="#">Hugging Face →</a></li>
+    <li><a href="#">Report Bug</a></li>
+  </ul>
+  <div class="footer-copy">© 2026 · Built for the Build Small Hackathon</div>
+</footer>
+
+<script>
+  // CLASS CARD INTERACTION
+  const classCards = document.querySelectorAll('.class-card');
+  classCards.forEach(card => {
+    card.addEventListener('click', () => {
+      classCards.forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+    });
+  });
+
+  // SCROLL REVEAL
+  const revealEls = document.querySelectorAll('.reveal');
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.12 });
+  revealEls.forEach(el => revealObserver.observe(el));
+
+  // TYPEWRITER — only fires when section scrolls into view, once
+  const typewriterTarget = document.getElementById('typewriterTarget');
+  let typewriterDone = false;
+  const typewriterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !typewriterDone) {
+        typewriterDone = true;
+        typewriterObserver.disconnect();
+        const originalText = typewriterTarget.textContent.trim();
+        const words = originalText.split(/\s+/);
+        let displayed = 0;
+        typewriterTarget.textContent = '';
+        typewriterTarget.style.minHeight = '120px';
+        const revealWords = setInterval(() => {
+          if (displayed < words.length) {
+            typewriterTarget.textContent = words.slice(0, ++displayed).join(' ');
+          } else {
+            clearInterval(revealWords);
+          }
+        }, 70);
+      }
+    });
+  }, { threshold: 0.5 });
+  typewriterObserver.observe(typewriterTarget);
+
+  // CRT FLICKER — subtle, random interval
+  let lastFlicker = 0;
+  function randomFlicker(ts) {
+    if (ts - lastFlicker > 6000 + Math.random() * 8000) {
+      document.body.style.opacity = '0.92';
+      setTimeout(() => {
+        document.body.style.opacity = '1';
+        setTimeout(() => {
+          document.body.style.opacity = '0.95';
+          setTimeout(() => { document.body.style.opacity = '1'; }, 50);
+        }, 60);
+      }, 40);
+      lastFlicker = ts;
+    }
+    requestAnimationFrame(randomFlicker);
+  }
+  requestAnimationFrame(randomFlicker);
+
+  // MOUSE PARALLAX — RAF throttled, only active in hero viewport
+  const runesBg = document.getElementById('runesBg');
+  let rafPending = false;
+  let mouseX = 0, mouseY = 0;
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    if (!rafPending) {
+      rafPending = true;
+      requestAnimationFrame(() => {
+        const x = (mouseX / window.innerWidth - 0.5) * 2;
+        const y = (mouseY / window.innerHeight - 0.5) * 2;
+        runesBg.style.transform = `translate(${x * 8}px, ${y * 8}px)`;
+        rafPending = false;
+      });
+    }
+  });
+</script>
+</body>
+</html>
