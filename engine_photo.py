@@ -15,7 +15,7 @@ from vision import analyze_scene
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5vl:3b"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "llama3-8b-8192"
 HISTORY_WINDOW = 6
 
 STARTING_INVENTORY: dict[str, list[str]] = {
