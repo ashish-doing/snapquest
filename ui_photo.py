@@ -509,23 +509,23 @@ with gr.Blocks(css=CHRONOQUEST_CSS, title="SNAPQUEST") as demo:
                       choice_1, choice_2, choice_3]
 
     # Wire events
-    character_class.change(_on_class_change, inputs=[character_class], outputs=[char_display])
+    character_class.change(_on_class_change, inputs=[character_class], outputs=[char_display], api_name=False)
 
     start_button.click(
-        _show_loading, inputs=[photo_input], outputs=[story_panel, photo_preview]
+        _show_loading, inputs=[photo_input], outputs=[story_panel, photo_preview], api_name=False
     ).then(
-        _start_game, inputs=[photo_input, character_class], outputs=start_outputs
+        _start_game, inputs=[photo_input, character_class], outputs=start_outputs, api_name=False
     )
 
     choice_1.click(lambda s, v: _take_action(s, v),
-                   inputs=[game_state, choice_1], outputs=action_outputs)
+                   inputs=[game_state, choice_1], outputs=action_outputs, api_name=False)
     choice_2.click(lambda s, v: _take_action(s, v),
-                   inputs=[game_state, choice_2], outputs=action_outputs)
+                   inputs=[game_state, choice_2], outputs=action_outputs, api_name=False)
     choice_3.click(lambda s, v: _take_action(s, v),
-                   inputs=[game_state, choice_3], outputs=action_outputs)
+                   inputs=[game_state, choice_3], outputs=action_outputs, api_name=False)
 
-    submit_text.click(_submit_text, inputs=[game_state, text_action], outputs=action_outputs)
-    text_action.submit(_submit_text, inputs=[game_state, text_action], outputs=action_outputs)
+    submit_text.click(_submit_text, inputs=[game_state, text_action], outputs=action_outputs, api_name=False)
+    text_action.submit(_submit_text, inputs=[game_state, text_action], outputs=action_outputs, api_name=False)
 
     voice_button.click(_submit_voice, inputs=[voice_input, game_state],
-                       outputs=action_outputs + [transcribed_text])
+                       outputs=action_outputs + [transcribed_text], api_name=False)
