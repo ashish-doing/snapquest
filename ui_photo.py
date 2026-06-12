@@ -431,7 +431,7 @@ def _submit_voice(audio_path, state):
 # ─── LAYOUT ───────────────────────────────────────────────────────────────────
 
 with gr.Blocks(css=CHRONOQUEST_CSS, title="SNAPQUEST") as demo:
-    game_state = gr.State(None)
+    game_state = gr.State({})
 
     # Onboarding
     gr.HTML(ONBOARDING_HTML)
