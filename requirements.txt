@@ -2,3 +2,4 @@ requests
 edge-tts
 openai-whisper
 Pillow
+huggingface_hub
