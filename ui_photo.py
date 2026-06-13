@@ -218,52 +218,36 @@ def _loot_popup_html(items: list[dict]) -> str:
 
 def _screen1_html(photo_data: list[dict]) -> str:
     """Landing + photo upload screen."""
+    # Build status cards showing what's been uploaded
     slots = ""
+    room_labels = ["ENTRY HALL", "INNER CHAMBER", "BOSS LAIR"]
+    room_nums = ["01", "02", "03"]
     for i in range(3):
         d = photo_data[i] if i < len(photo_data) else {}
         has = bool(d.get("path"))
-        label = ["ENTRY HALL","INNER CHAMBER","BOSS LAIR"][i]
-        num = ["01","02","03"][i]
-        opt = "" if i == 0 else " (optional)"
         objs = d.get("objects", [])
-        obj_html = ""
-        if objs:
-            obj_html = "".join(
-                f'<span style="border:1px solid #2a4a2a;padding:2px 8px;'
-                f'font-size:10px;color:#4ade80;margin:2px;display:inline-block;">'
-                f'{_h.escape(o)}</span>' for o in objs
-            )
-        boss_label = ""
+        label = room_labels[i]
+        num = room_nums[i]
+        obj_html = "".join(
+            f'<span style="border:1px solid #2a4a2a;padding:2px 8px;font-size:10px;'
+            f'color:#4ade80;margin:2px;display:inline-block;">{_h.escape(o)}</span>'
+            for o in objs
+        )
+        boss_note = ""
         if i == 2 and objs:
-            boss_label = (
-                f'<div style="margin-top:8px;border:1px solid #ff5555;padding:6px 10px;'
-                f'background:#0f0303;color:#ff5555;font-size:11px;letter-spacing:2px;">'
+            boss_note = (
+                f'<div style="margin-top:6px;border:1px solid #ff5555;padding:4px 8px;'
+                f'background:#0f0303;color:#ff5555;font-size:10px;letter-spacing:2px;">'
                 f'☠ BOSS: {_h.escape(objs[0].upper())} GUARDIAN</div>'
             )
-        slot_inner = ""
-        if has:
-            slot_inner = (
-                f'<div style="color:#4ade80;font-size:11px;letter-spacing:2px;margin-bottom:8px;">'
-                f'✓ PHOTO LOADED</div>'
-                f'<div style="margin-bottom:8px;flex-wrap:wrap;">{obj_html}</div>'
-                f'{boss_label}'
-            )
-        else:
-            slot_inner = (
-                f'<div style="color:#1e3d28;font-size:32px;margin-bottom:8px;">+</div>'
-                f'<div style="color:#2a5a38;font-size:11px;letter-spacing:2px;">UPLOAD {label}</div>'
-                f'<div style="color:#1a3020;font-size:10px;margin-top:4px;">{opt}</div>'
-            )
+        brd = "#2a5a38" if has else "#1a2a1a"
+        bg = "#040d06" if has else "#030806"
+        status = f'<div style="color:#4ade80;font-size:10px;letter-spacing:2px;margin-bottom:6px;">✓ LOADED</div>{obj_html}{boss_note}' if has else f'<div style="color:#1e3d28;font-size:10px;letter-spacing:2px;">— EMPTY —</div>'
         slots += (
-            f'<div style="border:1px solid {"#2a5a38" if has else "#1a2a1a"};'
-            f'background:{"#040d06" if has else "#030806"};'
-            f'padding:16px;min-height:100px;display:flex;flex-direction:column;'
-            f'align-items:{"flex-start" if has else "center"};'
-            f'justify-content:{"flex-start" if has else "center"};'
-            f'box-shadow:{"0 0 20px rgba(74,222,128,0.06)" if has else "none"};">'
-            f'<div style="color:#2a5a38;font-size:10px;letter-spacing:3px;margin-bottom:8px;">'
+            f'<div style="border:1px solid {brd};background:{bg};padding:12px;">'
+            f'<div style="color:#2a5a38;font-size:9px;letter-spacing:3px;margin-bottom:8px;">'
             f'ROOM {num} · {label}</div>'
-            f'{slot_inner}'
+            f'{status}'
             f'</div>'
         )
     n_loaded = sum(1 for d in photo_data if d.get("path"))
@@ -319,9 +303,9 @@ def _screen1_html(photo_data: list[dict]) -> str:
   <!-- UPLOAD AREA -->
   <div style="width:100%;max-width:760px;padding:32px 20px 0;">
     <div style="color:#2a5a38;font-size:10px;letter-spacing:4px;margin-bottom:16px;">
-      ▸ UPLOAD PHOTOS ( 1 MINIMUM · 3 FOR FULL DUNGEON )
+      ▸ UPLOAD STATUS
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
       {slots}
     </div>
 
@@ -751,7 +735,53 @@ body, .gradio-container {
 }
 #sq-root-row { max-width: 100% !important; padding: 0 !important; }
 /* Make Gradio image uploads actually work but stay hidden */
-.sq-hidden { position: absolute !important; opacity: 0 !important; pointer-events: none !important; width: 1px !important; height: 1px !important; overflow: hidden !important; }
+/* Upload row — styled to match game design */
+#sq-upload-row {
+  background: #030806 !important;
+  border-bottom: 1px solid #1a2a1a !important;
+  padding: 0 20px 20px !important;
+  max-width: 760px !important;
+  margin: 0 auto !important;
+  gap: 12px !important;
+}
+#sq-upload-row label {
+  color: #2a5a38 !important;
+  font-family: Courier New, monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 3px !important;
+  text-transform: uppercase !important;
+}
+#sq-upload-row .upload-container,
+#sq-upload-row [data-testid="image"] {
+  background: #030806 !important;
+  border: 1px solid #1a2a1a !important;
+  border-radius: 0 !important;
+  min-height: 120px !important;
+}
+#sq-upload-row .upload-container:hover,
+#sq-upload-row [data-testid="image"]:hover {
+  border-color: #2a5a38 !important;
+}
+#sq-upload-row .wrap {
+  background: #030806 !important;
+  border-radius: 0 !important;
+  color: #2a5a38 !important;
+}
+#sq-upload-row button,
+#sq-upload-row .upload-btn {
+  background: #040d06 !important;
+  border: 1px solid #1a2a1a !important;
+  color: #2a5a38 !important;
+  font-family: Courier New, monospace !important;
+  border-radius: 0 !important;
+}
+#sq-upload-row img {
+  object-fit: cover !important;
+  height: 120px !important;
+}
+.sq-hidden { display: none !important; }
+/* Hide the custom HTML slot cards since we're using real Gradio uploads */
+#sq-slot-cards { display: none !important; }
 """
 
 with gr.Blocks(css=_HIDE_GRADIO_CSS, title="SNAPQUEST") as demo:
@@ -767,10 +797,10 @@ with gr.Blocks(css=_HIDE_GRADIO_CSS, title="SNAPQUEST") as demo:
         main_html = gr.HTML(_screen1_html([]))
 
     # ── Hidden Gradio file inputs (real upload widgets, invisible) ─────────
-    with gr.Row(elem_classes=["sq-hidden"]):
-        hf_photo1 = gr.Image(type="filepath", label="p1")
-        hf_photo2 = gr.Image(type="filepath", label="p2")
-        hf_photo3 = gr.Image(type="filepath", label="p3")
+    with gr.Row(elem_id="sq-upload-row"):
+        hf_photo1 = gr.Image(type="filepath", label="Room 1 — Click to upload", elem_id="sq-img-0", height=140)
+        hf_photo2 = gr.Image(type="filepath", label="Room 2 — Click to upload (optional)", elem_id="sq-img-1", height=140)
+        hf_photo3 = gr.Image(type="filepath", label="Room 3 — Click to upload (optional)", elem_id="sq-img-2", height=140)
 
     # ── Hidden bridge components ────────────────────────────────────────────
     with gr.Row(elem_classes=["sq-hidden"]):
