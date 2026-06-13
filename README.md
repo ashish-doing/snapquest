@@ -1,8 +1,8 @@
 ---
 title: SnapQuest
 emoji: ⚔️
-colorFrom: orange
-colorTo: black
+colorFrom: yellow
+colorTo: gray
 sdk: gradio
 sdk_version: 5.9.1
 app_file: app.py
