@@ -583,7 +583,7 @@ async function startDungeon() {
   try {
     const res = await callAPI('start', [SID, GS.selectedClass]);
     hideLoading();
-    if (!res.ok) { alert('Error: ' + res.error); return; }
+    if (!res.ok) { alert('Error: ' + (res.error || JSON.stringify(res))); return; }
     GS.gameState = res.state;
     GS.chronicle = [];
     addChronicle('system', `═══ You descend into ${res.state.room.scene_name} ═══`);
