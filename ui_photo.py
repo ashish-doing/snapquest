@@ -1,11 +1,12 @@
-"""ui_photo.py — SnapQuest v6 — JS bridge embedded in screen HTML, no head= required.
+"""ui_photo.py — SnapQuest v7
+Root cause fix: gr.HTML inside gr.Blocks on HF Spaces 5.9.1 only renders reliably
+when it is the OUTPUT of an event. demo.load() fires over SSE which HF's iframe
+sandbox drops before the component hydrates.
 
-Fixes vs v5:
-  - Removed head=_SQ_HEAD_JS from gr.Blocks (broke HF Spaces Gradio 5.9.1)
-  - JS bridge is now embedded directly in every screen's HTML (game_screens.py)
-  - gr.HTML gets explicit min-height so it never collapses to 0px
-  - Loading state shown immediately on upload/start so users see feedback
-  - Nemotron DM backend env-var support added (SNAPQUEST_DM_MODEL)
+Solution: use gr.HTML as a purely output-driven component with NO initial value,
+and trigger render via a tiny <script> injected into a gr.HTML("") that auto-clicks
+the hidden button 300ms after page load — before any SSE is needed, using only
+the DOM that's already painted.
 """
 from __future__ import annotations
 
@@ -24,15 +25,10 @@ from vision import analyze_scene
 from voice import clean_for_speech, speak, transcribe_audio
 
 
-# ── App state ────────────────────────────────────────────────────────────────
+# ── State ────────────────────────────────────────────────────────────────────
 
 def _new_state() -> dict:
-    return {
-        "screen": "s1",
-        "photos": [],          # [{path, objects, name}]
-        "selected_class": None,
-        "game": {},
-    }
+    return {"screen": "s1", "photos": [], "selected_class": None, "game": {}}
 
 
 # ── Story formatter ──────────────────────────────────────────────────────────
@@ -41,27 +37,22 @@ def _format_story(state: dict) -> str:
     if not state.get("rooms"):
         return "The dungeon awaits..."
     room = current_room(state)
-    diff  = room.get("difficulty", "").upper()
-    sym   = {"EASY": "◆", "MEDIUM": "◈", "HARD": "⬡"}.get(diff, "◆")
+    diff = room.get("difficulty", "").upper()
+    sym  = {"EASY": "◆", "MEDIUM": "◈", "HARD": "⬡"}.get(diff, "◆")
     lines = [
-        "{sep} {sym} {name} {sym} {sep}".format(
-            sep="─"*5, sym=sym, name=room.get("scene_name", "Unknown")
-        ),
+        "{sep} {sym} {name} {sym} {sep}".format(sep="─"*5, sym=sym, name=room.get("scene_name","Unknown")),
         "",
         room.get("scene_description", ""),
     ]
-    history = state.get("history", [])
-    if history:
-        lines.append("\n── Chronicle ──")
-        for entry in history[-8:]:
-            act  = entry.get("action", "")
-            resp = entry.get("response", {})
-            st   = resp.get("story", "")
-            lines.append(f"\n▷ {act}")
-            if st:
-                lines.append(st)
+    for entry in state.get("history", [])[-8:]:
+        act  = entry.get("action", "")
+        resp = entry.get("response", {})
+        st   = resp.get("story", "")
+        lines.append(f"\n▷ {act}")
+        if st:
+            lines.append(st)
     if can_advance(state):
-        lines.append('\n\n[ Room cleared — click DESCEND DEEPER to advance ]')
+        lines.append("\n\n[ Room cleared — click DESCEND DEEPER to advance ]")
     return "\n".join(str(l) for l in lines if l is not None)
 
 
@@ -72,9 +63,7 @@ def _save_b64(data_url: str) -> str:
         header, b64 = data_url.split(",", 1)
     else:
         header, b64 = "", data_url
-    ext = ".jpg"
-    if "png" in header:   ext = ".png"
-    elif "webp" in header: ext = ".webp"
+    ext = ".png" if "png" in header else ".webp" if "webp" in header else ".jpg"
     raw = base64.b64decode(b64)
     fd, path = tempfile.mkstemp(prefix="sq_", suffix=ext, dir="/tmp")
     with os.fdopen(fd, "wb") as f:
@@ -82,102 +71,85 @@ def _save_b64(data_url: str) -> str:
     return path
 
 
-# ── Command handlers ──────────────────────────────────────────────────────────
+# ── Handlers ──────────────────────────────────────────────────────────────────
 
-def _handle_upload(app: dict, cmd: dict):
-    slot     = int(cmd.get("slot", 0))
+def _handle_upload(app, cmd):
+    slot = int(cmd.get("slot", 0))
     data_url = cmd.get("data", "")
-    name     = cmd.get("name", "photo")
-
     photos = list(app.get("photos", []))
     while len(photos) <= slot:
         photos.append({})
-
     if not data_url:
         photos[slot] = {}
         app["photos"] = photos
         return app, screen1_html(photos)
-
     try:
         path = _save_b64(data_url)
     except Exception as exc:
         return app, error_html(f"Could not read image: {exc}")
-
-    # Show loading state while vision runs
     try:
         scene   = analyze_scene(path, "Rogue")
         objects = scene.get("objects_found", [])
     except Exception:
         objects = ["mysterious object"]
-
-    photos[slot] = {"path": path, "objects": objects, "name": name}
+    photos[slot] = {"path": path, "objects": objects, "name": cmd.get("name","photo")}
     app["photos"] = photos
     return app, screen1_html(photos)
 
 
-def _handle_goto_class(app: dict, cmd: dict):
+def _handle_goto_class(app, cmd):
     app["screen"] = "s2"
-    n = sum(1 for p in app.get("photos", []) if p.get("path"))
+    n = sum(1 for p in app.get("photos",[]) if p.get("path"))
     summary = {1:"1 photo → 1-room dungeon (straight to boss)",
                2:"2 photos → 2-room dungeon (entry + boss)",
-               3:"3 photos → 3-room dungeon (entry, chamber, boss)"}.get(n, "")
+               3:"3 photos → 3-room dungeon (entry, chamber, boss)"}.get(n,"")
     return app, screen2_html(app.get("selected_class"), summary)
 
 
-def _handle_select_class(app: dict, cmd: dict):
-    cls = cmd.get("cls", "Swordsman")
+def _handle_select_class(app, cmd):
+    cls = cmd.get("cls","Swordsman")
     app["selected_class"] = cls
-    n = sum(1 for p in app.get("photos", []) if p.get("path"))
+    n = sum(1 for p in app.get("photos",[]) if p.get("path"))
     summary = {1:"1 photo → 1-room dungeon (straight to boss)",
                2:"2 photos → 2-room dungeon (entry + boss)",
-               3:"3 photos → 3-room dungeon (entry, chamber, boss)"}.get(n, "")
+               3:"3 photos → 3-room dungeon (entry, chamber, boss)"}.get(n,"")
     return app, screen2_html(cls, summary)
 
 
-def _handle_start_dungeon(app: dict, cmd: dict):
-    photos = app.get("photos", [])
+def _handle_start_dungeon(app, cmd):
+    photos = app.get("photos",[])
     paths  = [p["path"] for p in photos if p.get("path")]
     cls    = app.get("selected_class") or "Swordsman"
-
     if not paths:
         app["screen"] = "s1"
         return app, screen1_html(photos)
-
     try:
-        game_state      = start_photo_game(paths, cls)
-        app["game"]     = game_state
-        app["screen"]   = "s3"
-        story           = _format_story(game_state)
-        return app, screen3_html(game_state, story, None)
+        gs = start_photo_game(paths, cls)
+        app["game"]   = gs
+        app["screen"] = "s3"
+        return app, screen3_html(gs, _format_story(gs), None)
     except Exception as exc:
         return app, error_html(f"Could not build dungeon: {exc}")
 
 
-def _handle_action(app: dict, cmd: dict):
-    text       = cmd.get("text", "").strip()
-    game_state = app.get("game", {})
-
-    if not game_state.get("rooms"):
-        return app, screen1_html(app.get("photos", [])), None
-
+def _handle_action(app, cmd):
+    text = cmd.get("text","").strip()
+    gs   = app.get("game",{})
+    if not gs.get("rooms"):
+        return app, screen1_html(app.get("photos",[])), None
     if not text:
-        story = _format_story(game_state)
-        return app, screen3_html(game_state, story, None), None
-
+        return app, screen3_html(gs, _format_story(gs), None), None
     try:
-        room_was_cleared = current_room(game_state).get("cleared", False)
-        new_state, parsed = take_photo_action(game_state, text)
-
+        was_cleared = current_room(gs).get("cleared", False)
+        new_gs, parsed = take_photo_action(gs, text)
         loot = None
-        room_after = current_room(new_state)
-        if room_after.get("cleared") and not room_was_cleared:
-            n     = 3 if room_after.get("is_boss") else 2
-            loot  = roll_loot(n)
-            new_state["inventory"] = new_state.get("inventory", []) + loot
-
-        app["game"] = new_state
-        story       = _format_story(new_state)
-
+        room_after = current_room(new_gs)
+        if room_after.get("cleared") and not was_cleared:
+            n = 3 if room_after.get("is_boss") else 2
+            loot = roll_loot(n)
+            new_gs["inventory"] = new_gs.get("inventory",[]) + loot
+        app["game"] = new_gs
+        story = _format_story(new_gs)
         audio_path = None
         try:
             txt = clean_for_speech(parsed)
@@ -185,66 +157,56 @@ def _handle_action(app: dict, cmd: dict):
                 audio_path = speak(txt)
         except Exception:
             pass
-
-        return app, screen3_html(new_state, story, loot), audio_path
+        return app, screen3_html(new_gs, story, loot), audio_path
     except Exception as exc:
-        story = _format_story(game_state) + f"\n\n[error] {exc}"
-        return app, screen3_html(game_state, story, None), None
+        story = _format_story(gs) + f"\n\n[error] {exc}"
+        return app, screen3_html(gs, story, None), None
 
 
-def _handle_go_back(app: dict, cmd: dict):
-    target = cmd.get("to", "s1")
+def _handle_go_back(app, cmd):
+    target = cmd.get("to","s1")
     app["screen"] = target
     if target == "s1":
-        return app, screen1_html(app.get("photos", []))
-    elif target == "s2":
+        return app, screen1_html(app.get("photos",[]))
+    if target == "s2":
         return app, screen2_html(app.get("selected_class"))
-    elif target == "s3" and app.get("game", {}).get("rooms"):
+    if target == "s3" and app.get("game",{}).get("rooms"):
         gs = app["game"]
         return app, screen3_html(gs, _format_story(gs), None)
-    return app, screen1_html(app.get("photos", []))
+    return app, screen1_html(app.get("photos",[]))
 
 
-def _render_current(app: dict) -> str:
-    screen = app.get("screen", "s1")
-    if screen == "s1":
-        return screen1_html(app.get("photos", []))
-    elif screen == "s2":
-        return screen2_html(app.get("selected_class"))
-    elif screen == "s3" and app.get("game", {}).get("rooms"):
-        gs = app["game"]
-        return screen3_html(gs, _format_story(gs), None)
-    return screen1_html(app.get("photos", []))
+def _render_current(app):
+    s = app.get("screen","s1")
+    if s == "s1": return screen1_html(app.get("photos",[]))
+    if s == "s2": return screen2_html(app.get("selected_class"))
+    if s == "s3" and app.get("game",{}).get("rooms"):
+        gs = app["game"]; return screen3_html(gs, _format_story(gs), None)
+    return screen1_html(app.get("photos",[]))
 
 
 # ── Main dispatch ─────────────────────────────────────────────────────────────
 
 def _dispatch(cmd_json: str, app: dict):
-    """Returns (new_app, html, audio_or_None)"""
     app = app or _new_state()
     if not cmd_json or not cmd_json.strip():
-        return app, _render_current(app), None
-
+        # This is the INIT call — return screen1
+        return app, screen1_html(app.get("photos",[])), None
     try:
         cmd = json.loads(cmd_json)
-    except (json.JSONDecodeError, TypeError):
+    except Exception:
         return app, _render_current(app), None
-
-    action = cmd.get("cmd", "")
-
+    action = cmd.get("cmd","")
     if   action == "upload":        new_app, html = _handle_upload(app, cmd);        return new_app, html, None
     elif action == "goto_class":    new_app, html = _handle_goto_class(app, cmd);    return new_app, html, None
     elif action == "select_class":  new_app, html = _handle_select_class(app, cmd);  return new_app, html, None
     elif action == "start_dungeon": new_app, html = _handle_start_dungeon(app, cmd); return new_app, html, None
     elif action == "action":        return _handle_action(app, cmd)
     elif action == "go_back":       new_app, html = _handle_go_back(app, cmd);       return new_app, html, None
-
     return app, _render_current(app), None
 
 
-# ── Voice ─────────────────────────────────────────────────────────────────────
-
-def _on_voice(audio_path, app: dict):
+def _on_voice(audio_path, app):
     app = app or _new_state()
     if not audio_path:
         return app, _render_current(app), None, ""
@@ -254,71 +216,84 @@ def _on_voice(audio_path, app: dict):
         text = ""
     if not text:
         return app, _render_current(app), None, ""
-    new_app, html, audio = _handle_action(app, {"cmd": "action", "text": text})
+    new_app, html, audio = _handle_action(app, {"cmd":"action","text":text})
     return new_app, html, audio, text
 
 
-# ── Gradio app ────────────────────────────────────────────────────────────────
+# ── CSS ───────────────────────────────────────────────────────────────────────
 
 _CSS = """
-/* Reset Gradio chrome completely */
 .gradio-container {
     background: #08090d !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    margin: 0 !important; padding: 0 !important;
     max-width: 100% !important;
-    min-height: 100vh !important;
 }
-.gradio-container > .main,
-.gradio-container > .main > .wrap { min-height: 100vh !important; }
 footer { display: none !important; }
-.gr-prose, .gradio-container .prose { display: none !important; }
 #sq-bridge-row { display: none !important; }
-#sq-voice-row {
+#sq-init-row   { display: none !important; }
+#sq-voice-row  {
     background: #0d0e14 !important;
     border-top: 1px solid #2a2418 !important;
-    padding: 8px 20px !important;
+    padding: 8px 16px !important;
 }
-/* Critical: make the HTML component fill space */
-#sq-main > div { min-height: 100vh; }
-#sq-main .html-container { min-height: 100vh !important; }
+/* Make the HTML panel fill its container */
+#sq-main { min-height: 85vh !important; }
+#sq-main > div,
+#sq-main .html-container { min-height: 85vh !important; }
 """
 
-def _initial_render(app: dict):
-    """Called by demo.load() — forces Gradio to actually paint the HTML on first load."""
-    return app, screen1_html(app.get("photos", []))
+# ── AUTOCLICK TRIGGER ─────────────────────────────────────────────────────────
+# This small HTML block is painted synchronously by Gradio's SSR pass.
+# It uses setTimeout(0) so it runs after the Svelte components mount,
+# then clicks the hidden init button — no WebSocket/SSE needed for this step.
+_AUTOCLICK_HTML = """
+<div id="sq-autoclick" style="display:none"></div>
+<script>
+(function poll() {
+  var btn = document.querySelector('#sq-init-btn button');
+  if (btn) { btn.click(); return; }
+  setTimeout(poll, 80);
+})();
+</script>
+"""
 
+
+# ── Gradio layout ─────────────────────────────────────────────────────────────
 
 with gr.Blocks(css=_CSS, title="SNAPQUEST ⚔") as demo:
     app_state = gr.State(_new_state())
 
-    # Main HTML display — value intentionally empty string;
-    # demo.load() below populates it immediately after page connects.
+    # Autoclick trigger — rendered synchronously by Gradio SSR
+    gr.HTML(_AUTOCLICK_HTML)
+
+    # Game canvas — starts empty, filled by init button click
     main_html = gr.HTML(value="", elem_id="sq-main")
 
-    # Hidden bridge — JS writes JSON here, button triggers Python
+    # Hidden init button — clicked by the autoclick script above
+    with gr.Row(elem_id="sq-init-row", visible=False):
+        init_btn = gr.Button("init", elem_id="sq-init-btn")
+
+    # Hidden command bridge
     with gr.Row(elem_id="sq-bridge-row", visible=False):
-        cmd_box = gr.Textbox(label="cmd", elem_id="sq-cmd-box", visible=False)
-        cmd_btn = gr.Button("send", elem_id="sq-cmd-btn", visible=False)
+        cmd_box = gr.Textbox(label="cmd", elem_id="sq-cmd-box")
+        cmd_btn = gr.Button("send", elem_id="sq-cmd-btn")
 
-    # Voice row — minimal, shown at bottom
+    # Voice row
     with gr.Row(elem_id="sq-voice-row"):
-        voice_in = gr.Audio(
-            sources=["microphone"], type="filepath",
-            label="🎙 Voice Action (record then auto-submits)",
-        )
-        voice_out = gr.Audio(label="⚔ DM Voice", autoplay=True)
-        transcribed = gr.Textbox(label="Transcribed", visible=True, scale=2)
+        voice_in    = gr.Audio(sources=["microphone"], type="filepath",
+                               label="🎙 Voice Action")
+        voice_out   = gr.Audio(label="⚔ DM Voice", autoplay=True)
+        transcribed = gr.Textbox(label="Transcribed", scale=2)
 
-    # CRITICAL: demo.load() is the only reliable way to render HTML on
-    # initial page load in Gradio 5.9.1 on HF Spaces.
-    demo.load(
-        _initial_render,
-        inputs=[app_state],
-        outputs=[app_state, main_html],
+    # Init click → render screen1 (empty cmd_json → returns screen1)
+    init_btn.click(
+        _dispatch,
+        inputs=[gr.Textbox(value="", visible=False), app_state],
+        outputs=[app_state, main_html, voice_out],
+        api_name=False,
     )
 
-    # Wire bridge
+    # Command bridge
     cmd_btn.click(
         _dispatch,
         inputs=[cmd_box, app_state],
@@ -326,7 +301,7 @@ with gr.Blocks(css=_CSS, title="SNAPQUEST ⚔") as demo:
         api_name=False,
     )
 
-    # Wire voice
+    # Voice
     voice_in.stop_recording(
         _on_voice,
         inputs=[voice_in, app_state],
