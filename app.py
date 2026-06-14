@@ -196,8 +196,18 @@ from fastapi.responses import FileResponse as _FR
 _idx = os.path.join(_HERE, "index.html")
 
 demo.queue()
+demo.launch(show_api=True, ssr_mode=False, allowed_paths=[_HERE, "/tmp"], prevent_thread_lock=True)
 
-demo.app.router.routes.insert(0, _sr.Route("/game", lambda req: _FR(_idx), methods=["GET"]))
-demo.app.router.routes.insert(0, _sr.Route("/", lambda req: _FR(_idx), methods=["GET"]))
+from fastapi.responses import FileResponse as _FR2
+from fastapi import Request
 
-demo.launch(show_api=True, ssr_mode=False, allowed_paths=[_HERE, "/tmp"])
+@demo.app.get("/")
+async def _root(req: Request):
+    return _FR2(_idx)
+
+@demo.app.get("/game")
+async def _game(req: Request):
+    return _FR2(_idx)
+
+import asyncio
+asyncio.get_event_loop().run_forever()
