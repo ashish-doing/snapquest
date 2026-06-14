@@ -4,4 +4,3 @@ openai-whisper
 Pillow
 huggingface_hub
 faster-whisper
-uvicorn

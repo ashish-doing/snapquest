@@ -189,23 +189,15 @@ with gr.Blocks(title="SnapQuest") as demo:
             inputs=[gr.Textbox(),gr.Textbox()],
             outputs=[gr.Textbox()], api_name="voice")
 
-# ── FastAPI: / and /game → index.html, /gradio → Gradio API ──────────────────
+_HERE = os.path.dirname(os.path.abspath(__file__))
 
-fastapi_app = FastAPI()
-fastapi_app.add_middleware(CORSMiddleware, allow_origins=["*"],
-                           allow_methods=["*"], allow_headers=["*"])
-
-@fastapi_app.get("/")
-async def root():
+@demo.app.get("/game")
+async def serve_game():
+    from fastapi.responses import FileResponse
     return FileResponse(os.path.join(_HERE, "index.html"))
 
-@fastapi_app.get("/game")
-async def game():
-    return FileResponse(os.path.join(_HERE, "index.html"))
-
-# Mount Gradio at /gradio — API at /gradio/run/upload etc.
-fastapi_app = gr.mount_gradio_app(fastapi_app, demo, path="/gradio")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(fastapi_app, host="0.0.0.0", port=7860)
+demo.queue().launch(
+    show_api=True,
+    ssr_mode=False,
+    allowed_paths=[_HERE, "/tmp"],
+)
