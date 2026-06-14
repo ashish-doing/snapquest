@@ -381,6 +381,10 @@ _GLOBAL_CSS = """
     margin: 0 !important;
     padding: 0 !important;
     max-width: 100% !important;
+    min-height: 100vh !important;
+}
+.gradio-container > .main, .gradio-container > .main > .wrap {
+    min-height: 100vh !important;
 }
 footer { display: none !important; }
 .gr-prose { display: none !important; }
