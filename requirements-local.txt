@@ -2,9 +2,11 @@ gradio>=5.9.1
 requests
 edge-tts
 openai-whisper
+faster-whisper
 Pillow
+huggingface_hub
 modal
-transformers
+transformers>=5.7.0
 torch
 accelerate
 ollama
