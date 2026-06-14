@@ -189,25 +189,9 @@ with gr.Blocks(title="SnapQuest") as demo:
             inputs=[gr.Textbox(),gr.Textbox()],
             outputs=[gr.Textbox()], api_name="voice")
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-
-import starlette.routing as _sr
-from fastapi.responses import FileResponse as _FR
-_idx = os.path.join(_HERE, "index.html")
-
-demo.queue()
-demo.launch(show_api=True, ssr_mode=False, allowed_paths=[_HERE, "/tmp"], prevent_thread_lock=True)
-
-from fastapi.responses import FileResponse as _FR2
-from fastapi import Request
-
-@demo.app.get("/")
-async def _root(req: Request):
-    return _FR2(_idx)
-
 @demo.app.get("/game")
-async def _game(req: Request):
-    return _FR2(_idx)
+async def _game():
+    from fastapi.responses import FileResponse
+    return FileResponse(os.path.join(_HERE, "index.html"))
 
-import asyncio
-asyncio.get_event_loop().run_forever()
+demo.queue().launch(show_api=True, ssr_mode=False, allowed_paths=[_HERE, "/tmp"])

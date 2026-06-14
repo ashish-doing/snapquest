@@ -421,21 +421,14 @@ const LOOT_TIERS = {
 // API CALLS  — Gradio /run/<api_name> endpoints
 // ════════════════════════════════════════════════════════════════════════════
 async function callAPI(endpoint, data) {
-  const urls = [`/run/${endpoint}`, `/gradio_api/run/${endpoint}`];
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({data}),
-      });
-      if (!res.ok) continue;
-      const json = await res.json();
-      const raw = json.data ? json.data[0] : json;
-      return typeof raw === 'string' ? JSON.parse(raw) : raw;
-    } catch(e) { continue; }
-  }
-  throw new Error('API unreachable');
+  const res = await fetch(`/gradio_api/run/${endpoint}`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({data}),
+  });
+  const json = await res.json();
+  const raw = json.data ? json.data[0] : json;
+  return typeof raw === 'string' ? JSON.parse(raw) : raw;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
