@@ -191,13 +191,13 @@ with gr.Blocks(title="SnapQuest") as demo:
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
-@demo.app.get("/game")
-async def serve_game():
-    from fastapi.responses import FileResponse
-    return FileResponse(os.path.join(_HERE, "index.html"))
+import starlette.routing as _sr
+from fastapi.responses import FileResponse as _FR
+_idx = os.path.join(_HERE, "index.html")
 
-demo.queue().launch(
-    show_api=True,
-    ssr_mode=False,
-    allowed_paths=[_HERE, "/tmp"],
-)
+demo.queue()
+
+demo.app.router.routes.insert(0, _sr.Route("/game", lambda req: _FR(_idx), methods=["GET"]))
+demo.app.router.routes.insert(0, _sr.Route("/", lambda req: _FR(_idx), methods=["GET"]))
+
+demo.launch(show_api=True, ssr_mode=False, allowed_paths=[_HERE, "/tmp"])
