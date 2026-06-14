@@ -421,7 +421,7 @@ const LOOT_TIERS = {
 // API CALLS  — Gradio /run/<api_name> endpoints
 // ════════════════════════════════════════════════════════════════════════════
 async function callAPI(endpoint, data) {
-  const res = await fetch(`/run/${endpoint}`, {
+  const res = await fetch(`/gradio/run/${endpoint}`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({data}),
