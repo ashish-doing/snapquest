@@ -284,14 +284,17 @@ footer { display: none !important; }
 #sq-main .html-container { min-height: 100vh !important; }
 """
 
+def _initial_render(app: dict):
+    """Called by demo.load() — forces Gradio to actually paint the HTML on first load."""
+    return app, screen1_html(app.get("photos", []))
+
+
 with gr.Blocks(css=_CSS, title="SNAPQUEST ⚔") as demo:
     app_state = gr.State(_new_state())
 
-    # Main HTML display — min-height prevents Gradio collapsing it
-    main_html = gr.HTML(
-        screen1_html([]),
-        elem_id="sq-main",
-    )
+    # Main HTML display — value intentionally empty string;
+    # demo.load() below populates it immediately after page connects.
+    main_html = gr.HTML(value="", elem_id="sq-main")
 
     # Hidden bridge — JS writes JSON here, button triggers Python
     with gr.Row(elem_id="sq-bridge-row", visible=False):
@@ -300,12 +303,20 @@ with gr.Blocks(css=_CSS, title="SNAPQUEST ⚔") as demo:
 
     # Voice row — minimal, shown at bottom
     with gr.Row(elem_id="sq-voice-row"):
-        voice_in  = gr.Audio(
+        voice_in = gr.Audio(
             sources=["microphone"], type="filepath",
             label="🎙 Voice Action (record then auto-submits)",
         )
-        voice_out  = gr.Audio(label="⚔ DM Voice", autoplay=True)
+        voice_out = gr.Audio(label="⚔ DM Voice", autoplay=True)
         transcribed = gr.Textbox(label="Transcribed", visible=True, scale=2)
+
+    # CRITICAL: demo.load() is the only reliable way to render HTML on
+    # initial page load in Gradio 5.9.1 on HF Spaces.
+    demo.load(
+        _initial_render,
+        inputs=[app_state],
+        outputs=[app_state, main_html],
+    )
 
     # Wire bridge
     cmd_btn.click(
