@@ -1,7 +1,20 @@
 """app.py — SnapQuest.
-FastAPI serves index.html at / and /game.
-Gradio mounts at /gradio — its API endpoints at /gradio/run/*.
-index.html calls /gradio/run/<endpoint>.
+
+ARCHITECTURE (the fix):
+  - We create OUR OWN FastAPI app. It owns "/" and serves index.html.
+  - Gradio is mounted as a SUB-APPLICATION at "/gradio" via gr.mount_gradio_app().
+  - Gradio's own API endpoints therefore live at:
+        /gradio/gradio_api/run/upload
+        /gradio/gradio_api/run/start
+        /gradio/gradio_api/run/action
+        /gradio/gradio_api/run/voice
+  - index.html calls these via a RELATIVE path: `/gradio/gradio_api/run/<endpoint>`
+    (relative — works on the HF Space URL, localhost, or any deployment domain).
+
+This is the ONLY architecture that survives `launch()` / Spaces SDK boot,
+because we never ask Gradio to be the root ASGI app — so it can never
+override our "/" route. uvicorn serves OUR app; gradio is just a mounted
+child.
 """
 import base64
 import json
@@ -11,7 +24,6 @@ import tempfile
 import gradio as gr
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 
 from engine_photo import start_photo_game, take_photo_action
 from dungeon import current_room, can_advance
@@ -92,8 +104,9 @@ def _serialize_state(gs: dict) -> dict:
 
 # ── Gradio API functions ──────────────────────────────────────────────────────
 
-def api_upload(sid: str, slot: int, data_url: str, name: str) -> str:
+def api_upload(sid: str, slot: float, data_url: str, name: str) -> str:
     app = _get(sid)
+    slot = int(slot)
     photos = list(app.get("photos", []))
     while len(photos) <= slot: photos.append({})
     if not data_url:
@@ -169,29 +182,53 @@ def api_voice(sid: str, audio_b64: str) -> str:
     except Exception as exc:
         return json.dumps({"ok": False, "error": str(exc), "text": ""})
 
-# ── Gradio Blocks ─────────────────────────────────────────────────────────────
+# ── Gradio Blocks (API-only, hidden) ───────────────────────────────────────────
 
-with gr.Blocks(title="SnapQuest") as demo:
+with gr.Blocks(title="SnapQuest API") as gradio_app:
+    gr.Markdown("### SnapQuest API backend\n\nThis surface only exposes API endpoints "
+                 "consumed by the game UI at the [root URL](/). "
+                 "Visit `/` for the actual game.")
     with gr.Row(visible=False):
         gr.Button().click(api_upload,
-            inputs=[gr.Textbox(),gr.Number(),gr.Textbox(),gr.Textbox()],
+            inputs=[gr.Textbox(), gr.Number(), gr.Textbox(), gr.Textbox()],
             outputs=[gr.Textbox()], api_name="upload")
     with gr.Row(visible=False):
         gr.Button().click(api_start,
-            inputs=[gr.Textbox(),gr.Textbox()],
+            inputs=[gr.Textbox(), gr.Textbox()],
             outputs=[gr.Textbox()], api_name="start")
     with gr.Row(visible=False):
         gr.Button().click(api_action,
-            inputs=[gr.Textbox(),gr.Textbox()],
+            inputs=[gr.Textbox(), gr.Textbox()],
             outputs=[gr.Textbox()], api_name="action")
     with gr.Row(visible=False):
         gr.Button().click(api_voice,
-            inputs=[gr.Textbox(),gr.Textbox()],
+            inputs=[gr.Textbox(), gr.Textbox()],
             outputs=[gr.Textbox()], api_name="voice")
 
-@demo.app.get("/game")
-async def _game():
-    from fastapi.responses import FileResponse
+# ── FastAPI app (THIS is root — owns "/") ──────────────────────────────────────
+
+fastapi_app = FastAPI(title="SnapQuest")
+
+@fastapi_app.get("/")
+async def serve_index():
     return FileResponse(os.path.join(_HERE, "index.html"))
 
-demo.queue().launch(show_api=True, ssr_mode=False, allowed_paths=[_HERE, "/tmp"])
+@fastapi_app.get("/game")
+async def serve_game():
+    # Alias kept for backwards-compat with anything linking to /game
+    return FileResponse(os.path.join(_HERE, "index.html"))
+
+@fastapi_app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+# Mount Gradio as a SUB-app at /gradio. Its API lives at
+# /gradio/gradio_api/run/<endpoint>  — Gradio never touches "/".
+fastapi_app = gr.mount_gradio_app(fastapi_app, gradio_app, path="/gradio")
+
+# Expose `app` for `python app.py` / uvicorn / HF Spaces SDK detection.
+app = fastapi_app
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))

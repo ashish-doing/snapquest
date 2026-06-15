@@ -14,10 +14,18 @@
   --panel2:#11120a; --border:#1e1c14; --border-gold:#2a2210;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden;}
+html,body{background:var(--obsidian);}
+body{color:var(--ghost);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden;}
 .cinzel{font-family:'Cinzel',serif;} .cinzel-d{font-family:'Cinzel Decorative',serif;}
 .fell{font-family:'IM Fell English',Georgia,serif;font-style:italic;}
 .mono{font-family:'Share Tech Mono',monospace;}
+
+/* CRT scanline overlay (subtle, perf-safe) */
+.scanlines{position:fixed;inset:0;pointer-events:none;z-index:9000;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(201,168,76,.02) 2px,rgba(201,168,76,.02) 4px);
+  mix-blend-mode:overlay;}
+.vignette{position:fixed;inset:0;pointer-events:none;z-index:9001;
+  background:radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.55) 100%);}
 
 /* Screens */
 .screen{display:none;min-height:100vh;} .screen.active{display:flex;flex-direction:column;}
@@ -38,24 +46,32 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
 .badge-red{border-color:var(--crimson-dim);color:var(--crimson);}
 
 /* Upload section */
-.upload-section{max-width:820px;margin:0 auto;padding:36px 24px;}
+.upload-section{max-width:820px;margin:0 auto;padding:36px 24px;width:100%;}
 .section-label{font-family:'Cinzel',serif;color:var(--gold-dim);font-size:10px;letter-spacing:.35em;margin-bottom:16px;}
 .slot-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px;}
 .slot{position:relative;border:1px solid var(--border);background:var(--parchment);
-  min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;
   cursor:pointer;transition:border-color .2s,box-shadow .2s;text-align:center;padding:14px;overflow:hidden;}
 .slot:hover{border-color:var(--gold-dim);box-shadow:0 0 14px rgba(201,168,76,.1);}
 .slot.loaded{border-color:var(--teal-dim);align-items:flex-start;justify-content:flex-start;}
-.slot .slot-label{position:absolute;top:7px;left:10px;font-size:9px;letter-spacing:.25em;color:#3a2e14;font-family:'Cinzel',serif;}
+.slot.analyzing{border-color:var(--gold-dim);animation:slotPulse 1.2s ease-in-out infinite;}
+@keyframes slotPulse{0%,100%{box-shadow:0 0 6px rgba(201,168,76,.1);}50%{box-shadow:0 0 22px rgba(201,168,76,.35);}}
+.slot .slot-label{position:absolute;top:7px;left:10px;font-size:9px;letter-spacing:.25em;color:#3a2e14;font-family:'Cinzel',serif;z-index:2;}
 .slot .slot-icon{font-size:28px;color:#2a2020;margin-bottom:8px;}
 .slot .slot-name{font-family:'Cinzel',serif;color:#3a2e14;font-size:10px;letter-spacing:.2em;}
 .slot .slot-opt{color:#1e1a10;font-size:10px;margin-top:4px;}
-.slot img{width:100%;height:76px;object-fit:cover;border:1px solid var(--border);margin-bottom:7px;margin-top:20px;}
-.slot .analyzed{color:var(--teal);font-size:9px;letter-spacing:.2em;margin-bottom:5px;}
+.slot img{width:100%;height:84px;object-fit:cover;border:1px solid var(--border);margin-bottom:7px;margin-top:20px;}
+.slot .analyzed{color:var(--teal);font-size:9px;letter-spacing:.2em;margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+.slot .analyzing-label{color:var(--gold);font-size:9px;letter-spacing:.2em;margin-bottom:5px;}
 .tags{line-height:2;} .tag{display:inline-block;border:1px solid var(--border-gold);padding:2px 8px;font-size:10px;color:var(--gold-dim);margin:2px;}
 .boss-tag{border-color:var(--crimson-dim);color:var(--crimson);}
 .boss-preview{margin-top:8px;border:1px solid var(--crimson-dim);padding:4px 8px;background:#0a0205;
-  color:var(--crimson);font-size:10px;letter-spacing:.15em;}
+  color:var(--crimson);font-size:10px;letter-spacing:.15em;animation:bossGlow 2s ease-in-out infinite;}
+@keyframes bossGlow{0%,100%{box-shadow:0 0 0 rgba(204,41,54,0);}50%{box-shadow:0 0 14px rgba(204,41,54,.35);}}
+.remove-photo{position:absolute;top:6px;right:6px;z-index:3;width:20px;height:20px;
+  display:flex;align-items:center;justify-content:center;border:1px solid var(--crimson-dim);
+  background:#0a0205;color:var(--crimson);font-size:12px;cursor:pointer;line-height:1;}
+.remove-photo:hover{border-color:var(--crimson);color:#ff8888;}
 .corner{position:absolute;width:14px;height:14px;}
 .tl{top:0;left:0;border-top:2px solid var(--gold-dim);border-left:2px solid var(--gold-dim);}
 .tr{top:0;right:0;border-top:2px solid var(--gold-dim);border-right:2px solid var(--gold-dim);}
@@ -91,12 +107,12 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
 .class-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:28px;}
 .class-card{border:1px solid var(--border);background:var(--panel);padding:18px 14px;
   cursor:pointer;transition:all .2s;position:relative;}
-.class-card:hover{border-color:var(--border-gold);}
+.class-card:hover{border-color:var(--border-gold);transform:translateY(-2px);}
 .class-card.selected{border-width:2px;}
 @keyframes goldPulse{0%,100%{box-shadow:0 0 8px rgba(201,168,76,.15);}50%{box-shadow:0 0 24px rgba(201,168,76,.45);}}
 .class-card.selected{animation:goldPulse 3s ease-in-out infinite;}
-.class-icon{font-size:30px;text-align:center;margin-bottom:8px;}
-.class-name{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.2em;text-align:center;margin-bottom:3px;}
+.class-icon{font-size:34px;text-align:center;margin-bottom:8px;filter:drop-shadow(0 0 8px rgba(201,168,76,.25));}
+.class-name{font-size:12px;letter-spacing:.2em;text-align:center;margin-bottom:3px;}
 .class-tag{font-family:'IM Fell English',serif;font-style:italic;color:#5a5040;font-size:11px;text-align:center;margin-bottom:12px;}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:12px;}
 .stat-box{text-align:center;background:var(--parchment);padding:5px 4px;border:1px solid var(--border);}
@@ -111,9 +127,9 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
   padding:8px 16px;display:grid;grid-template-columns:auto 1fr auto auto auto;
   gap:14px;align-items:center;flex-shrink:0;}
 .hud-title{font-family:'Cinzel Decorative',serif;color:var(--gold);font-size:15px;letter-spacing:.15em;text-shadow:0 0 10px rgba(201,168,76,.4);}
-.minimap{display:flex;align-items:center;gap:0;}
-.mm-room{width:24px;height:24px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--panel);}
-.mm-line{width:10px;height:1px;background:#1e1c14;align-self:center;}
+.minimap{display:flex;align-items:center;gap:0;overflow-x:auto;}
+.mm-room{width:24px;height:24px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--panel);flex-shrink:0;}
+.mm-line{width:10px;height:1px;background:#1e1c14;align-self:center;flex-shrink:0;}
 .bar-wrap{min-width:130px;}
 .bar-label{display:flex;justify-content:space-between;margin-bottom:3px;font-size:10px;}
 .bar-track{height:6px;background:#1a0a0a;border:1px solid #2a1414;overflow:hidden;}
@@ -133,8 +149,8 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
 .monster-tags{display:flex;gap:6px;flex-wrap:wrap;}
 @keyframes runeGlow{0%,100%{box-shadow:inset 0 0 10px rgba(204,41,54,.1);}50%{box-shadow:inset 0 0 30px rgba(204,41,54,.35),0 0 18px rgba(204,41,54,.2);}}
 .boss-panel{border:2px solid var(--crimson);background:#0a0208;padding:12px 16px;
-  margin:0 0 0 0;flex-shrink:0;position:relative;animation:runeGlow 2s ease-in-out infinite;}
-.boss-panel.defeated{border-color:var(--teal);background:#030e0a;animation:none;}
+  margin:0;flex-shrink:0;position:relative;animation:runeGlow 2s ease-in-out infinite;}
+.boss-panel.defeated{border-color:var(--teal);background:#030e0a;animation:none;border-width:1px;}
 .chronicle{flex:1;overflow-y:auto;padding:14px 16px;font-size:12px;line-height:1.7;
   background:radial-gradient(ellipse at 50% 0%,#0e0c08,var(--obsidian));}
 .cl-dm{color:var(--ghost);line-height:1.75;}
@@ -150,6 +166,7 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
   background:linear-gradient(90deg,#120d04,#1c1508);text-transform:uppercase;margin-bottom:10px;}
 @keyframes goldPulse2{0%,100%{box-shadow:0 0 8px rgba(201,168,76,.2);}50%{box-shadow:0 0 24px rgba(201,168,76,.5);}}
 .advance-btn{animation:goldPulse2 2s ease-in-out infinite;}
+.advance-btn:hover{color:var(--gold-bright);}
 .choice-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;}
 .choice-btn{font-family:'Share Tech Mono',monospace;font-size:11px;padding:10px 8px;
   cursor:pointer;border:1px solid var(--border-gold);color:var(--muted);
@@ -157,36 +174,43 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
 .choice-btn:hover{border-color:var(--gold-dim);color:var(--ghost);}
 .choice-btn.boss-mode{border-color:var(--crimson-dim);color:#aa4444;}
 .choice-btn.boss-mode:hover{border-color:var(--crimson);color:#ff8888;}
+.choice-btn:disabled{opacity:.4;cursor:not-allowed;}
 .input-row{display:flex;gap:8px;}
 .action-input{flex:1;background:var(--parchment);border:1px solid var(--border-gold);
   color:var(--ghost);font-family:'Share Tech Mono',monospace;font-size:12px;padding:9px 12px;outline:none;}
+.action-input:focus{border-color:var(--gold-dim);}
 .act-btn{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.15em;padding:9px 14px;
   cursor:pointer;border:1px solid var(--gold-dim);color:var(--gold);background:var(--panel);
   white-space:nowrap;transition:all .2s;}
 .act-btn:hover{border-color:var(--gold);}
+.act-btn:disabled{opacity:.4;cursor:not-allowed;}
 .inv-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;}
 .inv-empty{font-family:'IM Fell English',serif;font-style:italic;color:var(--muted);font-size:12px;}
 .atm-label{font-family:'Cinzel',serif;color:var(--gold-dim);font-size:9px;letter-spacing:.25em;margin-bottom:10px;}
 .atm-text{font-family:'IM Fell English',serif;font-style:italic;color:var(--muted);font-size:12px;line-height:1.8;}
 .perk-item{color:var(--muted);font-size:10px;padding:3px 0;border-bottom:1px solid var(--border);}
+.thinking{display:flex;align-items:center;gap:8px;color:var(--gold-dim);font-size:11px;letter-spacing:.15em;padding:6px 0;}
+.thinking .dot{width:5px;height:5px;background:var(--gold-dim);border-radius:50%;animation:dotPulse 1.2s ease-in-out infinite;}
+.thinking .dot:nth-child(2){animation-delay:.2s;} .thinking .dot:nth-child(3){animation-delay:.4s;}
+@keyframes dotPulse{0%,100%{opacity:.2;}50%{opacity:1;}}
 
 /* Overlays */
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 .overlay{position:fixed;inset:0;background:rgba(4,3,6,.93);z-index:9999;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-family:'Share Tech Mono',monospace;animation:fadeIn .3s ease;}
+  font-family:'Share Tech Mono',monospace;animation:fadeIn .3s ease;padding:20px;}
 .loot-title{font-family:'Cinzel Decorative',serif;color:var(--gold);font-size:22px;letter-spacing:.3em;
-  margin-bottom:6px;text-shadow:0 0 20px rgba(201,168,76,.6);}
-.loot-sub{font-family:'IM Fell English',serif;font-style:italic;color:var(--muted);margin-bottom:28px;}
+  margin-bottom:6px;text-shadow:0 0 20px rgba(201,168,76,.6);text-align:center;}
+.loot-sub{font-family:'IM Fell English',serif;font-style:italic;color:var(--muted);margin-bottom:28px;text-align:center;}
 .loot-cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:32px;}
-.loot-card{border:1px solid;background:var(--panel2);padding:14px 18px;min-width:130px;text-align:center;}
+.loot-card{border:1px solid;background:var(--panel2);padding:14px 18px;min-width:130px;text-align:center;animation:fadeIn .4s ease;}
 .loot-icon{font-size:30px;margin-bottom:7px;}
 .loot-tier{font-size:9px;letter-spacing:.2em;margin-bottom:4px;}
 .loot-name{font-family:'Cinzel',serif;color:var(--ghost);font-size:13px;margin-bottom:4px;}
 .loot-stat{color:var(--muted);font-size:11px;}
 .victory-overlay{position:fixed;inset:0;background:rgba(4,3,6,.95);z-index:9998;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;animation:fadeIn .5s ease;}
+  text-align:center;animation:fadeIn .5s ease;padding:20px;}
 .victory-title{font-family:'Cinzel Decorative',serif;color:var(--gold);font-size:clamp(24px,4vw,38px);
   letter-spacing:.2em;margin-bottom:12px;text-shadow:0 0 40px rgba(201,168,76,.6);}
 .victory-stat{font-family:'Cinzel',serif;color:var(--gold);font-size:22px;}
@@ -194,19 +218,32 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
 
 /* Loading */
 @keyframes loadPulse{0%,100%{opacity:.3;}50%{opacity:1;}}
-.loading-screen{position:fixed;inset:0;background:var(--obsidian);z-index:9997;
-  display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;}
+.loading-screen{position:fixed;inset:0;background:rgba(8,9,13,.92);z-index:9997;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;
+  backdrop-filter:blur(2px);}
 .loading-title{font-family:'Cinzel Decorative',serif;color:var(--gold);font-size:26px;
   letter-spacing:.2em;margin-bottom:14px;animation:loadPulse 1.2s infinite;}
 .loading-sub{font-family:'IM Fell English',serif;font-style:italic;color:var(--muted);font-size:13px;}
 #loading-screen{display:none;}
 
+/* Toast / error banner */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:#0a0205;border:1px solid var(--crimson);color:#ff9090;
+  padding:10px 20px;font-size:12px;letter-spacing:.05em;z-index:10001;
+  max-width:90vw;text-align:center;animation:fadeIn .3s ease;display:none;}
+
 /* Responsive */
 @media(max-width:900px){.game-grid{grid-template-columns:1fr!important;}.sidebar-l,.sidebar-r{display:none!important;}
-.class-grid{grid-template-columns:1fr 1fr!important;}.slot-grid{grid-template-columns:1fr!important;}}
+.class-grid{grid-template-columns:1fr 1fr!important;}.slot-grid{grid-template-columns:1fr!important;}
+.hud{grid-template-columns:auto 1fr auto!important;}
+.bar-wrap:last-child, .hud > div:nth-child(5){display:none;}
+}
 </style>
 </head>
 <body>
+
+<div class="scanlines"></div>
+<div class="vignette"></div>
 
 <!-- Loading overlay -->
 <div id="loading-screen" class="loading-screen">
@@ -217,6 +254,9 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
     <div class="loading-sub" id="loading-sub">MiniCPM-V is reading your world...</div>
   </div>
 </div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
 
 <!-- ═══════════════════════════════════════════════════════ SCREEN 1 — UPLOAD -->
 <div class="screen active" id="s1">
@@ -327,7 +367,7 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
           <input class="action-input" id="action-input" type="text"
             placeholder='"attack", "examine the lamp", "use scroll"...'
             onkeydown="if(event.key==='Enter') doAction(this.value)">
-          <button class="act-btn" onclick="doAction(document.getElementById('action-input').value)">⚔ ACT</button>
+          <button class="act-btn" id="act-btn" onclick="doAction(document.getElementById('action-input').value)">⚔ ACT</button>
         </div>
       </div>
     </div>
@@ -346,7 +386,7 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
         <div class="divider" style="margin:14px 0;"></div>
         <div class="cinzel atm-label">VOICE COMMAND</div>
         <div style="color:var(--muted);font-size:10px;margin-bottom:8px;">Record audio below to speak your action</div>
-        <button class="btn" onclick="startVoice()" style="font-size:11px;padding:10px;">🎙 RECORD VOICE</button>
+        <button class="btn" id="voice-btn" onclick="startVoice()" style="font-size:11px;padding:10px;">🎙 RECORD VOICE</button>
         <div id="voice-status" style="color:var(--muted);font-size:10px;margin-top:6px;"></div>
       </div>
     </div>
@@ -361,7 +401,7 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
     <div class="loot-title">✦ SPOILS OF BATTLE ✦</div>
     <div class="loot-sub">The dungeon yields its secrets.</div>
     <div class="loot-cards" id="loot-cards"></div>
-    <button class="btn" style="max-width:240px;" onclick="closeLoot()">CLAIM YOUR SPOILS</button>
+    <button class="btn" style="max-width:240px;margin:0 auto;" onclick="closeLoot()">CLAIM YOUR SPOILS</button>
   </div>
 </div>
 
@@ -373,12 +413,12 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
     <div class="victory-title">★ DUNGEON CLEARED ★</div>
     <div class="divider" style="max-width:360px;margin:0 auto 20px;"></div>
     <div class="fell" style="color:var(--muted);font-size:14px;line-height:1.8;margin-bottom:28px;" id="victory-text"></div>
-    <div style="display:flex;gap:28px;justify-content:center;margin-bottom:32px;">
+    <div style="display:flex;gap:28px;justify-content:center;margin-bottom:32px;flex-wrap:wrap;">
       <div><div class="victory-stat" id="v-level"></div><div class="victory-stat-label">FINAL LEVEL</div></div>
       <div><div class="victory-stat" id="v-xp"></div><div class="victory-stat-label">TOTAL XP</div></div>
       <div><div class="victory-stat" id="v-items"></div><div class="victory-stat-label">ITEMS</div></div>
     </div>
-    <button class="btn" style="max-width:280px;" onclick="document.getElementById('victory-overlay').style.display='none'">VIEW THE AFTERMATH</button>
+    <button class="btn" style="max-width:280px;margin:0 auto;" onclick="document.getElementById('victory-overlay').style.display='none'">VIEW THE AFTERMATH</button>
   </div>
 </div>
 
@@ -386,7 +426,10 @@ body{background:var(--obsidian);color:var(--ghost);font-family:'Share Tech Mono'
 // ════════════════════════════════════════════════════════════════════════════
 // CONFIG & STATE
 // ════════════════════════════════════════════════════════════════════════════
-const API = ''; // same origin — calls go to /run/upload etc.
+// IMPORTANT: relative path. Gradio is mounted at /gradio in app.py, so its
+// own gradio_api lives at /gradio/gradio_api/run/<endpoint>. This works
+// regardless of the Space's domain (HF Spaces, localhost, custom domain).
+const API_BASE = '/gradio/gradio_api/run';
 const SID = 'sq_' + Math.random().toString(36).slice(2);
 
 const GS = {
@@ -394,6 +437,7 @@ const GS = {
   selectedClass: null,
   gameState: null,
   chronicle: [],
+  busy: false,
 };
 
 const CLASS_DATA = {
@@ -418,17 +462,29 @@ const LOOT_TIERS = {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-// API CALLS  — Gradio /run/<api_name> endpoints
+// API CALLS  — Gradio /gradio/gradio_api/run/<endpoint> endpoints
 // ════════════════════════════════════════════════════════════════════════════
 async function callAPI(endpoint, data) {
-  const res = await fetch(`https://build-small-hackathon-snapquest.hf.space/gradio_api/run/${endpoint}`, {
+  const res = await fetch(`${API_BASE}/${endpoint}`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({data}),
   });
+  if (!res.ok) {
+    const text = await res.text().catch(()=>'');
+    throw new Error(`HTTP ${res.status} on /${endpoint}: ${text.slice(0,200)}`);
+  }
   const json = await res.json();
-  const raw = json.data ? json.data[0] : json;
+  const raw = (json && json.data) ? json.data[0] : json;
   return typeof raw === 'string' ? JSON.parse(raw) : raw;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(()=>{ t.style.display='none'; }, 4000);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -457,9 +513,15 @@ function renderSlots() {
   const grid = document.getElementById('slot-grid');
   grid.innerHTML = '';
   GS.photos.forEach((p, i) => {
-    const has = !!p.path;
+    const has = !!p.path && p.path !== 'pending';
+    const pending = p.path === 'pending';
     let inner = '';
-    if (has) {
+    if (pending) {
+      inner = `
+        <div class="slot-label">${String(i+1).padStart(2,'0')} · ${ROOM_LABELS[i]}</div>
+        <img src="${p.dataUrl||''}" alt="room ${i+1}" style="opacity:.5;">
+        <div class="analyzing-label">⚗ ANALYZING...</div>`;
+    } else if (has) {
       const tags = (p.objects||[]).map(o => `<span class="tag">${e(o)}</span>`).join('');
       const boss = (i===2 && p.objects && p.objects[0])
         ? `<div class="boss-preview">☠ BOSS · ${e(p.objects[0].toUpperCase())}</div>` : '';
@@ -475,24 +537,37 @@ function renderSlots() {
         <div class="slot-name">${ROOM_LABELS[i]}</div>
         <div class="slot-opt">${i===0?'Required':'Optional'}</div>`;
     }
+    const removeBtn = (has || pending) ? `<div class="remove-photo" onclick="event.stopPropagation();removeSlot(${i})">✕</div>` : '';
     const div = document.createElement('div');
-    div.className = 'slot' + (has ? ' loaded' : '');
+    div.className = 'slot' + (has ? ' loaded' : '') + (pending ? ' analyzing' : '');
     div.innerHTML = `
-      ${inner}
+      ${inner}${removeBtn}
       <div class="corner tl"></div><div class="corner tr"></div>
       <div class="corner bl"></div><div class="corner br"></div>
       <input type="file" id="file-${i}" accept="image/*" style="display:none" onchange="handleFile(${i},this)">`;
-    div.onclick = (ev) => { if(ev.target.tagName!=='INPUT') document.getElementById(`file-${i}`).click(); };
+    div.onclick = (ev) => {
+      if (ev.target.closest('.remove-photo')) return;
+      if (pending) return;
+      document.getElementById(`file-${i}`).click();
+    };
     grid.appendChild(div);
   });
   renderS1Button();
 }
 
+function removeSlot(i) {
+  GS.photos[i] = {};
+  renderSlots();
+}
+
 function renderS1Button() {
-  const n = GS.photos.filter(p=>p.path).length;
+  const n = GS.photos.filter(p=>p.path && p.path !== 'pending').length;
+  const pending = GS.photos.some(p=>p.path === 'pending');
   const area = document.getElementById('s1-btn-area');
   const labels = {1:'1-room dungeon',2:'2-room dungeon',3:'3-room dungeon'};
-  if (n >= 1) {
+  if (pending) {
+    area.innerHTML = `<div class="btn-disabled">⚗ READING YOUR WORLD...</div>`;
+  } else if (n >= 1) {
     area.innerHTML = `
       <button class="btn" onclick="goToClassSelect()">⚔&nbsp;&nbsp;CHOOSE YOUR CLASS&nbsp;&nbsp;→</button>
       <div class="btn-sub">${labels[n]||''} ready to be conquered</div>`;
@@ -507,21 +582,21 @@ async function handleFile(slot, inp) {
   const reader = new FileReader();
   reader.onload = async (ev) => {
     const dataUrl = ev.target.result;
-    showLoading('⚗ MINICPM-V READING YOUR WORLD...', `Analyzing ${file.name}...`);
     GS.photos[slot] = {dataUrl, path:'pending', objects:[], name:file.name};
     renderSlots();
     try {
       const res = await callAPI('upload', [SID, slot, dataUrl, file.name]);
-      if (res.ok) {
+      if (res && res.ok) {
         const summary = res.photos[slot];
         GS.photos[slot] = {dataUrl, path:'ready', objects:summary.objects||[], name:file.name};
       } else {
-        GS.photos[slot] = {dataUrl, path:'ready', objects:['unknown object'], name:file.name};
+        GS.photos[slot] = {dataUrl, path:'ready', objects:['mysterious object'], name:file.name};
+        if (res && res.error) showToast('Vision read fallback used: ' + res.error);
       }
     } catch(err) {
       GS.photos[slot] = {dataUrl, path:'ready', objects:['mysterious object'], name:file.name};
+      showToast('Upload error (fallback used): ' + err.message);
     }
-    hideLoading();
     renderSlots();
   };
   reader.readAsDataURL(file);
@@ -536,7 +611,7 @@ function goToClassSelect() {
 // SCREEN 2 — CLASS SELECT
 // ════════════════════════════════════════════════════════════════════════════
 function renderClassSelect() {
-  const n = GS.photos.filter(p=>p.path).length;
+  const n = GS.photos.filter(p=>p.path && p.path !== 'pending').length;
   const summaries = {1:'1 photo → 1-room dungeon (straight to boss)',
                      2:'2 photos → 2-room dungeon (entry + boss)',
                      3:'3 photos → 3-room dungeon (entry, chamber, boss)'};
@@ -577,22 +652,31 @@ function renderClassSelect() {
 }
 
 async function startDungeon() {
-  if (!GS.selectedClass) return;
+  if (!GS.selectedClass || GS.busy) return;
+  GS.busy = true;
   showLoading('⚔ FORGING YOUR DUNGEON...', 'Building rooms from your photos...');
   try {
     const res = await callAPI('start', [SID, GS.selectedClass]);
     hideLoading();
-    if (!res || !res.ok) { alert('Full response: ' + JSON.stringify(res)); return; }
+    if (!res || !res.ok) {
+      showToast('Failed to start: ' + (res && res.error ? res.error : 'unknown error'));
+      GS.busy = false;
+      return;
+    }
     GS.gameState = res.state;
     GS.chronicle = [];
     addChronicle('system', `═══ You descend into ${res.state.room.scene_name} ═══`);
     addChronicle('dm', res.state.room.scene_description || '');
+    if (res.state.room.is_boss && res.state.boss) {
+      addChronicle('combat', `☠ ${res.state.boss.name} stirs in the darkness...`);
+    }
     renderDungeon();
     showScreen('s3');
   } catch(err) {
     hideLoading();
-    alert('Failed to start: ' + err);
+    showToast('Failed to start: ' + err.message);
   }
+  GS.busy = false;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -667,7 +751,7 @@ function renderDungeon() {
 
   // Scene header
   document.getElementById('scene-name').textContent = room.scene_name;
-  document.getElementById('monster-tags').innerHTML = room.objects_found.map((obj,i)=>
+  document.getElementById('monster-tags').innerHTML = (room.objects_found||[]).map((obj,i)=>
     room.is_boss && i===0
       ? `<span class="tag boss-tag">☠ ${e(obj.toUpperCase())}</span>`
       : `<span class="tag">${e(obj)}</span>`
@@ -722,9 +806,7 @@ function renderDungeon() {
     Room:&nbsp;${gs.room_index+1} of ${gs.total_rooms}`;
 
   // Scroll chronicle
-  const ch = document.getElementById('chronicle');
-  ch.innerHTML = GS.chronicle.map(({type,text}) => `<div class="cl-${type}">${e(text)}</div>`).join('');
-  ch.scrollTop = ch.scrollHeight;
+  renderChronicle();
 
   // Victory check
   if (room.is_boss && boss && !boss.alive && gs.room_index === gs.total_rooms-1) {
@@ -732,10 +814,16 @@ function renderDungeon() {
   }
 }
 
+function renderChronicle() {
+  const ch = document.getElementById('chronicle');
+  ch.innerHTML = GS.chronicle.map(({type,text}) => `<div class="cl-${type}">${e(text)}</div>`).join('');
+  ch.scrollTop = ch.scrollHeight;
+}
+
 function addChronicle(type, text) {
   if (!text || !text.trim()) return;
   text.split('\n').forEach(line => {
-    if (!line.trim()) { GS.chronicle.push({type:'system',text:''}); return; }
+    if (!line.trim()) { GS.chronicle.push({type:'system',text:'\u00A0'}); return; }
     let t = type;
     if (line.startsWith('▷')) t='player';
     else if (line.includes('⚔')||line.includes('💀')) t='combat';
@@ -747,28 +835,58 @@ function addChronicle(type, text) {
   });
 }
 
+function setBusy(busy) {
+  GS.busy = busy;
+  const actBtn = document.getElementById('act-btn');
+  const input = document.getElementById('action-input');
+  if (actBtn) actBtn.disabled = busy;
+  if (input) input.disabled = busy;
+  document.querySelectorAll('.choice-btn').forEach(b => b.disabled = busy);
+  const advBtn = document.querySelector('.advance-btn');
+  if (advBtn) advBtn.disabled = busy;
+}
+
 async function doAction(text) {
   text = (text||'').trim();
-  if (!text) return;
+  if (!text || GS.busy) return;
   document.getElementById('action-input').value = '';
   addChronicle('player', `▷ ${text}`);
-  // Optimistic re-render
-  const ch = document.getElementById('chronicle');
-  ch.innerHTML = GS.chronicle.map(({type,t})=>`<div class="cl-${type}">${e(t||text)}</div>`).join('');
-  ch.scrollTop = ch.scrollHeight;
+  GS.chronicle.push({type:'thinking', text:'__THINKING__'});
+  renderChronicleWithThinking();
+  setBusy(true);
 
   try {
     const res = await callAPI('action', [SID, text]);
-    if (!res.ok) { addChronicle('system', `[error] ${res.error}`); return; }
+    GS.chronicle = GS.chronicle.filter(c => c.type !== 'thinking');
+    if (!res || !res.ok) {
+      addChronicle('system', `[error] ${res && res.error ? res.error : 'unknown error'}`);
+      setBusy(false);
+      renderChronicle();
+      return;
+    }
     GS.gameState = res.state;
     if (res.story) addChronicle('dm', res.story);
+    setBusy(false);
     if (res.loot && res.loot.length) showLoot(res.loot);
     if (res.audio_b64) playAudio(res.audio_b64);
     renderDungeon();
   } catch(err) {
-    addChronicle('system', `[error] ${err}`);
-    renderDungeon();
+    GS.chronicle = GS.chronicle.filter(c => c.type !== 'thinking');
+    addChronicle('system', `[error] ${err.message}`);
+    setBusy(false);
+    renderChronicle();
   }
+}
+
+function renderChronicleWithThinking() {
+  const ch = document.getElementById('chronicle');
+  ch.innerHTML = GS.chronicle.map(({type,text}) => {
+    if (type === 'thinking') {
+      return `<div class="thinking">THE DUNGEON STIRS <span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+    }
+    return `<div class="cl-${type}">${e(text)}</div>`;
+  }).join('');
+  ch.scrollTop = ch.scrollHeight;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -794,7 +912,7 @@ function showVictory(gs, boss) {
   document.getElementById('v-items').textContent = gs.inventory.length;
   document.getElementById('victory-text').textContent =
     `You have slain ${boss.name} and emerged victorious. The dungeon remembers your name.`;
-  document.getElementById('victory-overlay').style.display = 'flex';
+  setTimeout(()=>{ document.getElementById('victory-overlay').style.display = 'flex'; }, 600);
 }
 
 function playAudio(b64) {
@@ -802,7 +920,7 @@ function playAudio(b64) {
     const blob = b64ToBlob(b64, 'audio/mpeg');
     const url  = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    audio.play();
+    audio.play().catch(()=>{});
   } catch(e) {}
 }
 function b64ToBlob(b64, type) {
@@ -815,7 +933,7 @@ function b64ToBlob(b64, type) {
 // Voice recording
 let mediaRec=null, chunks=[];
 async function startVoice() {
-  const btn = document.querySelector('button[onclick="startVoice()"]');
+  const btn = document.getElementById('voice-btn');
   if (mediaRec && mediaRec.state==='recording') {
     mediaRec.stop();
     btn.textContent = '🎙 RECORD VOICE';
@@ -828,11 +946,13 @@ async function startVoice() {
     mediaRec = new MediaRecorder(stream);
     mediaRec.ondataavailable = ev => chunks.push(ev.data);
     mediaRec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
       const blob = new Blob(chunks, {type:'audio/webm'});
       const reader = new FileReader();
       reader.onload = async ev => {
         const b64 = ev.target.result.split(',')[1];
         document.getElementById('voice-status').textContent = 'Sending to Whisper...';
+        setBusy(true);
         try {
           const res = await callAPI('voice', [SID, b64]);
           if (res.transcribed) {
@@ -848,8 +968,9 @@ async function startVoice() {
             document.getElementById('voice-status').textContent = 'Could not transcribe, try again.';
           }
         } catch(err) {
-          document.getElementById('voice-status').textContent = 'Voice error: '+err;
+          document.getElementById('voice-status').textContent = 'Voice error: '+err.message;
         }
+        setBusy(false);
       };
       reader.readAsDataURL(blob);
     };
@@ -857,7 +978,7 @@ async function startVoice() {
     btn.textContent = '⏹ STOP RECORDING';
     document.getElementById('voice-status').textContent = '● Recording...';
   } catch(err) {
-    document.getElementById('voice-status').textContent = 'Mic error: '+err;
+    document.getElementById('voice-status').textContent = 'Mic error: '+err.message;
   }
 }
 
